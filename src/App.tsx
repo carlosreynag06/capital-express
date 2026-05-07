@@ -12,7 +12,6 @@ import {
   LayoutDashboard,
   Menu,
   MoreHorizontal,
-  Pencil,
   Plus,
   ReceiptText,
   RefreshCcw,
@@ -208,8 +207,8 @@ function getCustomer(id: number) {
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(customers[0])
-  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(initialLoans[0])
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null)
   const [showLoanForm, setShowLoanForm] = useState(false)
   const [renewalPreview, setRenewalPreview] = useState<Loan | null>(null)
 
@@ -327,6 +326,7 @@ function App() {
           <CustomersView
             selectedCustomer={selectedCustomer}
             onSelectCustomer={setSelectedCustomer}
+            onCloseCustomer={() => setSelectedCustomer(null)}
             onOpenLoan={openLoan}
           />
         )}
@@ -335,6 +335,10 @@ function App() {
             selectedLoan={selectedLoan}
             renewalPreview={renewalPreview}
             onOpenLoan={openLoan}
+            onCloseLoan={() => {
+              setSelectedLoan(null)
+              setRenewalPreview(null)
+            }}
             onRenew={calculateRenewal}
             onNewLoan={() => setShowLoanForm(true)}
           />
@@ -402,14 +406,14 @@ function Dashboard({
             <AreaChart data={collectionsTrend}>
               <defs>
                 <linearGradient id="collectionGradient" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="5%" stopColor="#1f8a70" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#1f8a70" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#2f5d8c" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#2f5d8c" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="day" axisLine={false} tickLine={false} />
               <Tooltip formatter={(value) => formatMoney(Number(value))} />
-              <Area type="monotone" dataKey="value" stroke="#1f8a70" fill="url(#collectionGradient)" strokeWidth={3} />
+              <Area type="monotone" dataKey="value" stroke="#2f5d8c" fill="url(#collectionGradient)" strokeWidth={3} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -442,16 +446,18 @@ function Dashboard({
 function CustomersView({
   selectedCustomer,
   onSelectCustomer,
+  onCloseCustomer,
   onOpenLoan,
 }: {
   selectedCustomer: Customer | null
   onSelectCustomer: (customer: Customer) => void
+  onCloseCustomer: () => void
   onOpenLoan: (loan: Loan) => void
 }) {
   const customerLoans = initialLoans.filter((loan) => loan.customerId === selectedCustomer?.id)
 
   return (
-    <section className="customers-layout">
+    <section className={selectedCustomer ? 'customers-layout has-detail' : 'customers-layout'}>
       <div className="panel table-panel">
         <div className="panel-header">
           <div>
@@ -488,8 +494,8 @@ function CustomersView({
               <p className="eyebrow">Ficha del cliente</p>
               <h2>{selectedCustomer.name}</h2>
             </div>
-            <button className="icon-button" aria-label="Editar cliente">
-              <Pencil size={17} />
+            <button className="icon-button" onClick={onCloseCustomer} aria-label="Cerrar ficha del cliente">
+              <X size={17} />
             </button>
           </div>
           <div className="info-grid">
@@ -536,17 +542,19 @@ function LoansView({
   selectedLoan,
   renewalPreview,
   onOpenLoan,
+  onCloseLoan,
   onRenew,
   onNewLoan,
 }: {
   selectedLoan: Loan | null
   renewalPreview: Loan | null
   onOpenLoan: (loan: Loan) => void
+  onCloseLoan: () => void
   onRenew: (loan: Loan) => void
   onNewLoan: () => void
 }) {
   return (
-    <section className="loans-layout">
+    <section className={selectedLoan ? 'loans-layout has-detail' : 'loans-layout'}>
       <div className="panel table-panel">
         <div className="panel-header">
           <div>
@@ -572,7 +580,7 @@ function LoansView({
             </thead>
             <tbody>
               {initialLoans.map((loan) => (
-                <tr key={loan.id}>
+                <tr className="interactive-row" key={loan.id} onClick={() => onOpenLoan(loan)}>
                   <td>{getCustomer(loan.customerId).name}</td>
                   <td>{formatMoney(loan.principal)}</td>
                   <td>{formatMoney(loan.paymentAmount)} · {loan.frequency}</td>
@@ -591,7 +599,12 @@ function LoansView({
       </div>
 
       {selectedLoan && (
-        <LoanDetail loan={selectedLoan} renewalPreview={renewalPreview} onRenew={() => onRenew(selectedLoan)} />
+        <LoanDetail
+          loan={selectedLoan}
+          renewalPreview={renewalPreview}
+          onClose={onCloseLoan}
+          onRenew={() => onRenew(selectedLoan)}
+        />
       )}
     </section>
   )
@@ -600,10 +613,12 @@ function LoansView({
 function LoanDetail({
   loan,
   renewalPreview,
+  onClose,
   onRenew,
 }: {
   loan: Loan
   renewalPreview: Loan | null
+  onClose: () => void
   onRenew: () => void
 }) {
   const totalExpected = loan.paymentAmount * loan.payments
@@ -618,7 +633,12 @@ function LoanDetail({
           <p className="eyebrow">Préstamo #{loan.id}</p>
           <h2>{getCustomer(loan.customerId).name}</h2>
         </div>
-        <StatusBadge status={loan.status} />
+        <div className="sheet-actions">
+          <StatusBadge status={loan.status} />
+          <button className="icon-button" onClick={onClose} aria-label="Cerrar detalle del préstamo">
+            <X size={17} />
+          </button>
+        </div>
       </div>
 
       <div className="progress-block">

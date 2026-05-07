@@ -32,7 +32,7 @@
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: #d7f36f;
+  background: #f2c94c;
   color: #10201d;
   font-weight: 900;
 }
@@ -84,7 +84,7 @@ nav {
 .nav-item:hover,
 .nav-item.active {
   color: #10201d;
-  background: #d7f36f;
+  background: #f2c94c;
 }
 
 .session-card {
@@ -177,8 +177,8 @@ p {
 .primary-button,
 .confirm-button {
   color: #ffffff;
-  background: #1f8a70;
-  box-shadow: 0 12px 28px rgba(31, 138, 112, 0.18);
+  background: #23395d;
+  box-shadow: 0 12px 28px rgba(35, 57, 93, 0.2);
 }
 
 .secondary-button {
@@ -233,7 +233,7 @@ p {
 }
 
 .metric-card svg {
-  color: #1f8a70;
+  color: #2f5d8c;
 }
 
 .metric-card span,
@@ -312,7 +312,7 @@ p {
 .profit-stack strong {
   display: block;
   margin: 8px 0 12px;
-  color: #d7f36f;
+  color: #f2c94c;
   font-size: 31px;
 }
 
@@ -342,9 +342,14 @@ p {
 .loans-layout,
 .liquidation-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 390px;
   gap: 18px;
   align-items: start;
+}
+
+.customers-layout.has-detail,
+.loans-layout.has-detail,
+.liquidation-layout {
+  grid-template-columns: minmax(0, 1fr) 390px;
 }
 
 .customer-list {
@@ -366,8 +371,8 @@ p {
 }
 
 .customer-card.selected {
-  border-color: #1f8a70;
-  background: #eff8f3;
+  border-color: #2f5d8c;
+  background: #edf4fb;
 }
 
 .customer-card strong,
@@ -385,7 +390,7 @@ p {
   place-items: center;
   border-radius: 8px;
   background: #18302b;
-  color: #d7f36f;
+  color: #f2c94c;
   font-weight: 900;
 }
 
@@ -466,6 +471,14 @@ td {
   font-size: 14px;
 }
 
+.interactive-row {
+  cursor: pointer;
+}
+
+.interactive-row:hover td {
+  background: #f2f6fb;
+}
+
 .status {
   display: inline-flex;
   align-items: center;
@@ -520,14 +533,14 @@ td {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #d7f36f;
+  background: #f2c94c;
 }
 
 .renew-button {
   width: 100%;
   margin-top: 18px;
   color: #10201d;
-  background: #d7f36f;
+  background: #f2c94c;
 }
 
 .renewal-box {
@@ -552,7 +565,7 @@ td {
 }
 
 .calc-line.strong {
-  color: #1f8a70;
+  color: #23395d;
   font-size: 19px;
 }
 
@@ -583,7 +596,7 @@ td {
 }
 
 .report-card svg {
-  color: #1f8a70;
+  color: #2f5d8c;
 }
 
 .report-card span {
@@ -755,4 +768,9 @@ textarea {
   .modal-actions {
     flex-direction: column-reverse;
   }
+}
+.sheet-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
