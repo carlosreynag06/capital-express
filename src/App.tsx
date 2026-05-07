@@ -753,13 +753,6 @@ function CustomersView({
                         }}
                         actions={[
                           {
-                            label: 'Abrir ficha',
-                            onSelect: () => {
-                              onSelectCustomer(customer)
-                              setOpenActions(null)
-                            },
-                          },
-                          {
                             label: 'Asignar préstamo',
                             onSelect: () => {
                               onSelectCustomer(customer)
@@ -768,9 +761,23 @@ function CustomersView({
                             },
                           },
                           {
+                            label: 'Editar cliente',
+                            onSelect: () => {
+                              onSelectCustomer(customer)
+                              setOpenActions(null)
+                            },
+                          },
+                          {
                             label: 'Registrar pago',
                             onSelect: () => {
                               onGoPayments()
+                              setOpenActions(null)
+                            },
+                          },
+                          {
+                            label: 'Eliminar cliente',
+                            tone: 'danger',
+                            onSelect: () => {
                               setOpenActions(null)
                             },
                           },
@@ -988,7 +995,7 @@ function QuickActions({
   label,
   onToggle,
 }: {
-  actions: Array<{ label: string; onSelect: () => void }>
+  actions: Array<{ label: string; onSelect: () => void; tone?: 'danger' }>
   isOpen: boolean
   label: string
   onToggle: (event: MouseEvent<HTMLButtonElement>) => void
@@ -1001,7 +1008,7 @@ function QuickActions({
       {isOpen && (
         <div className="quick-menu">
           {actions.map((action) => (
-            <button key={action.label} onClick={action.onSelect}>
+            <button className={action.tone === 'danger' ? 'danger-action' : undefined} key={action.label} onClick={action.onSelect}>
               {action.label}
             </button>
           ))}
