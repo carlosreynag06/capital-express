@@ -28,7 +28,7 @@ import {
   Tooltip,
   XAxis,
 } from 'recharts'
-import type { FormEvent, ReactNode } from 'react'
+import type { FormEvent, MouseEvent, ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import './App.css'
 
@@ -519,6 +519,8 @@ function App() {
             onSelectCustomer={setSelectedCustomer}
             onCloseCustomer={() => setSelectedCustomer(null)}
             onNewCustomer={() => setShowCustomerForm(true)}
+            onNewLoan={() => setShowLoanForm(true)}
+            onGoPayments={() => setActiveView('Cuotas')}
             onOpenLoan={openLoan}
           />
         )}
@@ -533,6 +535,11 @@ function App() {
             }}
             onRenew={calculateRenewal}
             onNewLoan={() => setShowLoanForm(true)}
+            onOpenCustomer={(customer) => {
+              setSelectedCustomer(customer)
+              setActiveView('Clientes')
+            }}
+            onGoPayments={() => setActiveView('Cuotas')}
           />
         )}
         {activeView === 'Cuotas' && <PaymentsView />}
@@ -674,6 +681,8 @@ function CustomersView({
   onSelectCustomer,
   onCloseCustomer,
   onNewCustomer,
+  onNewLoan,
+  onGoPayments,
   onOpenLoan,
 }: {
   customers: Customer[]
@@ -681,8 +690,11 @@ function CustomersView({
   onSelectCustomer: (customer: Customer) => void
   onCloseCustomer: () => void
   onNewCustomer: () => void
+  onNewLoan: () => void
+  onGoPayments: () => void
   onOpenLoan: (loan: Loan) => void
 }) {
+  const [openActions, setOpenActions] = useState<number | null>(null)
   const customerLoans = initialLoans.filter((loan) => loan.customerId === selectedCustomer?.id)
 
   return (
@@ -708,6 +720,7 @@ function CustomersView({
                 <th>Cobrador</th>
                 <th>Estado</th>
                 <th>Prestamos</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -730,6 +743,51 @@ function CustomersView({
                     <td>{customer.collector}</td>
                     <td><StatusBadge status={customer.status} /></td>
                     <td>{loans.length} activos</td>
+                    <td>
+                      <QuickActions
+                        isOpen={openActions === customer.id}
+                        label="Acciones del cliente"
+                        onToggle={(event) => {
+                          event.stopPropagation()
+                          setOpenActions(openActions === customer.id ? null : customer.id)
+                        }}
+                        actions={[
+                          {
+                            label: 'Abrir ficha',
+                            onSelect: () => {
+                              onSelectCustomer(customer)
+                              setOpenActions(null)
+                            },
+                          },
+                          {
+                            label: 'Asignar préstamo',
+                            onSelect: () => {
+                              onSelectCustomer(customer)
+                              onNewLoan()
+                              setOpenActions(null)
+                            },
+                          },
+                          {
+                            label: 'Registrar pago',
+                            onSelect: () => {
+                              onGoPayments()
+                              setOpenActions(null)
+                            },
+                          },
+                          ...(loans[0]
+                            ? [
+                                {
+                                  label: 'Abrir préstamo activo',
+                                  onSelect: () => {
+                                    onOpenLoan(loans[0])
+                                    setOpenActions(null)
+                                  },
+                                },
+                              ]
+                            : []),
+                        ]}
+                      />
+                    </td>
                   </tr>
                 )
               })}
@@ -811,6 +869,8 @@ function LoansView({
   onCloseLoan,
   onRenew,
   onNewLoan,
+  onOpenCustomer,
+  onGoPayments,
 }: {
   selectedLoan: Loan | null
   renewalPreview: Loan | null
@@ -818,7 +878,11 @@ function LoansView({
   onCloseLoan: () => void
   onRenew: (loan: Loan) => void
   onNewLoan: () => void
+  onOpenCustomer: (customer: Customer) => void
+  onGoPayments: () => void
 }) {
+  const [openActions, setOpenActions] = useState<number | null>(null)
+
   return (
     <section className="loans-layout">
       <div className="panel table-panel">
@@ -845,27 +909,60 @@ function LoansView({
               </tr>
             </thead>
             <tbody>
-              {initialLoans.map((loan) => (
-                <tr className="interactive-row" key={loan.id} onClick={() => onOpenLoan(loan)}>
-                  <td>{getCustomer(loan.customerId).name}</td>
-                  <td>{formatMoney(loan.principal)}</td>
-                  <td>{formatMoney(loan.paymentAmount)} · {loan.frequency}</td>
-                  <td>{loan.paidPayments}/{loan.payments}</td>
-                  <td><StatusBadge status={loan.status} /></td>
-                  <td>
-                    <button
-                      className="icon-button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onOpenLoan(loan)
-                      }}
-                      aria-label="Abrir préstamo"
-                    >
-                      <MoreHorizontal size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {initialLoans.map((loan) => {
+                const customer = getCustomer(loan.customerId)
+
+                return (
+                  <tr className="interactive-row" key={loan.id} onClick={() => onOpenLoan(loan)}>
+                    <td>{customer.name}</td>
+                    <td>{formatMoney(loan.principal)}</td>
+                    <td>{formatMoney(loan.paymentAmount)} · {loan.frequency}</td>
+                    <td>{loan.paidPayments}/{loan.payments}</td>
+                    <td><StatusBadge status={loan.status} /></td>
+                    <td>
+                      <QuickActions
+                        isOpen={openActions === loan.id}
+                        label="Acciones del préstamo"
+                        onToggle={(event) => {
+                          event.stopPropagation()
+                          setOpenActions(openActions === loan.id ? null : loan.id)
+                        }}
+                        actions={[
+                          {
+                            label: 'Abrir detalle',
+                            onSelect: () => {
+                              onOpenLoan(loan)
+                              setOpenActions(null)
+                            },
+                          },
+                          {
+                            label: 'Renovar préstamo',
+                            onSelect: () => {
+                              onOpenLoan(loan)
+                              onRenew(loan)
+                              setOpenActions(null)
+                            },
+                          },
+                          {
+                            label: 'Registrar pago',
+                            onSelect: () => {
+                              onGoPayments()
+                              setOpenActions(null)
+                            },
+                          },
+                          {
+                            label: 'Ver cliente',
+                            onSelect: () => {
+                              onOpenCustomer(customer)
+                              setOpenActions(null)
+                            },
+                          },
+                        ]}
+                      />
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -882,6 +979,35 @@ function LoansView({
         </DetailDrawer>
       )}
     </section>
+  )
+}
+
+function QuickActions({
+  actions,
+  isOpen,
+  label,
+  onToggle,
+}: {
+  actions: Array<{ label: string; onSelect: () => void }>
+  isOpen: boolean
+  label: string
+  onToggle: (event: MouseEvent<HTMLButtonElement>) => void
+}) {
+  return (
+    <div className="quick-actions" onClick={(event) => event.stopPropagation()}>
+      <button className="icon-button" onClick={onToggle} aria-label={label} aria-expanded={isOpen}>
+        <MoreHorizontal size={18} />
+      </button>
+      {isOpen && (
+        <div className="quick-menu">
+          {actions.map((action) => (
+            <button key={action.label} onClick={action.onSelect}>
+              {action.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
