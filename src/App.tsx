@@ -377,6 +377,21 @@ function getCustomer(id: number) {
   return customers.find((customer) => customer.id === id) ?? customers[0]
 }
 
+function getRenewalMath(loan: Loan, newPrincipal = loan.principal) {
+  const totalExpected = loan.paymentAmount * loan.payments
+  const alreadyPaid = loan.paymentAmount * loan.paidPayments
+  const payoffBalance = Math.max(0, totalExpected - alreadyPaid)
+  const amountToCustomer = Math.max(0, newPrincipal - payoffBalance)
+
+  return {
+    totalExpected,
+    alreadyPaid,
+    payoffBalance,
+    newPrincipal,
+    amountToCustomer,
+  }
+}
+
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -559,8 +574,7 @@ function Dashboard({
           {eligibleRenewals.map((loan) => {
             const customer = getCustomer(loan.customerId)
             const progress = Math.round((loan.paidPayments / loan.payments) * 100)
-            const paidAmount = loan.paymentAmount * loan.paidPayments
-            const totalExpected = loan.paymentAmount * loan.payments
+            const renewal = getRenewalMath(loan)
 
             return (
               <button className="renewal-card" key={loan.id} onClick={() => onOpenLoan(loan)}>
@@ -579,8 +593,12 @@ function Dashboard({
                   <strong>{progress}%</strong>
                 </div>
                 <div className="renewal-money">
-                  <span>Pagado: {formatMoney(paidAmount)}</span>
-                  <span>Total: {formatMoney(totalExpected)}</span>
+                  <span>Pagado: {formatMoney(renewal.alreadyPaid)}</span>
+                  <span>Balance a cerrar: {formatMoney(renewal.payoffBalance)}</span>
+                </div>
+                <div className="receive-box">
+                  <span>Recibiría al renovar</span>
+                  <strong>{formatMoney(renewal.amountToCustomer)}</strong>
                 </div>
               </button>
             )
@@ -876,9 +894,7 @@ function LoanDetail({
   onClose: () => void
   onRenew: () => void
 }) {
-  const totalExpected = loan.paymentAmount * loan.payments
-  const alreadyPaid = loan.paymentAmount * loan.paidPayments
-  const remaining = Math.max(0, totalExpected - alreadyPaid)
+  const renewal = getRenewalMath(loan)
   const progress = Math.round((loan.paidPayments / loan.payments) * 100)
 
   return (
@@ -908,9 +924,9 @@ function LoanDetail({
 
       <div className="info-grid">
         <Info label="Principal original" value={formatMoney(loan.principal)} />
-        <Info label="Total esperado" value={formatMoney(totalExpected)} />
-        <Info label="Pagado por cliente" value={formatMoney(alreadyPaid)} />
-        <Info label="Balance para cierre" value={formatMoney(remaining)} />
+        <Info label="Total esperado" value={formatMoney(renewal.totalExpected)} />
+        <Info label="Pagado por cliente" value={formatMoney(renewal.alreadyPaid)} />
+        <Info label="Balance para cierre" value={formatMoney(renewal.payoffBalance)} />
         <Info label="Inicio" value={loan.startDate} />
         <Info label="Final calculado" value={loan.endDate} />
         <Info label="Mora" value={`${loan.lateFee}% después de ${loan.graceDays} días`} />
@@ -926,10 +942,12 @@ function LoanDetail({
         <div className="renewal-box">
           <p className="eyebrow">Cálculo automático</p>
           <h3>Renovación simulada</h3>
-          <div className="calc-line"><span>Balance a cerrar</span><strong>{formatMoney(remaining)}</strong></div>
-          <div className="calc-line"><span>Nuevo principal</span><strong>{formatMoney(loan.principal)}</strong></div>
+          <div className="calc-line"><span>Pagado por cliente</span><strong>{formatMoney(renewal.alreadyPaid)}</strong></div>
+          <div className="calc-line"><span>Balance a cerrar</span><strong>{formatMoney(renewal.payoffBalance)}</strong></div>
+          <div className="calc-line"><span>Nuevo principal</span><strong>{formatMoney(renewal.newPrincipal)}</strong></div>
+          <div className="calc-line strong"><span>Cliente recibe</span><strong>{formatMoney(renewal.amountToCustomer)}</strong></div>
           <div className="calc-line"><span>Nueva cuota</span><strong>{formatMoney(loan.paymentAmount)}</strong></div>
-          <div className="calc-line"><span>Nuevo total esperado</span><strong>{formatMoney(totalExpected)}</strong></div>
+          <div className="calc-line"><span>Nuevo total esperado</span><strong>{formatMoney(renewal.totalExpected)}</strong></div>
           <small>Al confirmar, el préstamo actual quedaría como renovado y se abriría un nuevo ciclo desde el día 1.</small>
         </div>
       )}
