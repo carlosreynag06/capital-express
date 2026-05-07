@@ -28,7 +28,7 @@ import {
   Tooltip,
   XAxis,
 } from 'recharts'
-import type { ReactNode } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import './App.css'
 
@@ -77,7 +77,7 @@ type DashboardTotals = {
   partner: number
 }
 
-const customers: Customer[] = [
+const initialCustomers: Customer[] = [
   {
     id: 1,
     name: 'Marisol De la Cruz',
@@ -374,7 +374,7 @@ const formatMoney = (value: number) =>
   }).format(value)
 
 function getCustomer(id: number) {
-  return customers.find((customer) => customer.id === id) ?? customers[0]
+  return initialCustomers.find((customer) => customer.id === id) ?? initialCustomers[0]
 }
 
 function getRenewalMath(loan: Loan, newPrincipal = loan.principal) {
@@ -398,6 +398,8 @@ function App() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null)
   const [showLoanForm, setShowLoanForm] = useState(false)
+  const [showCustomerForm, setShowCustomerForm] = useState(false)
+  const [customerRecords, setCustomerRecords] = useState<Customer[]>(initialCustomers)
   const [renewalPreview, setRenewalPreview] = useState<Loan | null>(null)
 
   const totals = useMemo(() => {
@@ -512,9 +514,11 @@ function App() {
         )}
         {activeView === 'Clientes' && (
           <CustomersView
+            customers={customerRecords}
             selectedCustomer={selectedCustomer}
             onSelectCustomer={setSelectedCustomer}
             onCloseCustomer={() => setSelectedCustomer(null)}
+            onNewCustomer={() => setShowCustomerForm(true)}
             onOpenLoan={openLoan}
           />
         )}
@@ -537,7 +541,18 @@ function App() {
       </main>
 
       {menuOpen && <button className="scrim" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú" />}
-      {showLoanForm && <LoanForm onClose={() => setShowLoanForm(false)} />}
+      {showLoanForm && <LoanForm customers={customerRecords} onClose={() => setShowLoanForm(false)} />}
+      {showCustomerForm && (
+        <CustomerForm
+          onClose={() => setShowCustomerForm(false)}
+          onCreate={(customer) => {
+            setCustomerRecords((records) => [...records, customer])
+            setSelectedCustomer(customer)
+            setShowCustomerForm(false)
+          }}
+          nextId={customerRecords.length + 1}
+        />
+      )}
     </div>
   )
 }
@@ -654,14 +669,18 @@ function Dashboard({
 }
 
 function CustomersView({
+  customers,
   selectedCustomer,
   onSelectCustomer,
   onCloseCustomer,
+  onNewCustomer,
   onOpenLoan,
 }: {
+  customers: Customer[]
   selectedCustomer: Customer | null
   onSelectCustomer: (customer: Customer) => void
   onCloseCustomer: () => void
+  onNewCustomer: () => void
   onOpenLoan: (loan: Loan) => void
 }) {
   const customerLoans = initialLoans.filter((loan) => loan.customerId === selectedCustomer?.id)
@@ -674,7 +693,7 @@ function CustomersView({
             <p className="eyebrow">Cartera</p>
             <h2>Clientes registrados</h2>
           </div>
-          <button className="secondary-button">
+          <button className="primary-button" onClick={onNewCustomer}>
             <Plus size={17} />
             Nuevo cliente
           </button>
@@ -955,7 +974,101 @@ function LoanDetail({
   )
 }
 
-function LoanForm({ onClose }: { onClose: () => void }) {
+function CustomerForm({
+  nextId,
+  onClose,
+  onCreate,
+}: {
+  nextId: number
+  onClose: () => void
+  onCreate: (customer: Customer) => void
+}) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const form = new FormData(event.currentTarget)
+    const customer: Customer = {
+      id: nextId,
+      name: String(form.get('name') || ''),
+      phone: String(form.get('phone') || ''),
+      address: String(form.get('address') || ''),
+      cedula: String(form.get('cedula') || ''),
+      collector: String(form.get('collector') || ''),
+      status: String(form.get('status') || 'Activo') as CustomerStatus,
+      references: String(form.get('references') || ''),
+      notes: String(form.get('notes') || ''),
+    }
+
+    onCreate(customer)
+  }
+
+  return (
+    <div className="modal-layer">
+      <form className="modal-card" onSubmit={handleSubmit}>
+        <div className="modal-header">
+          <div>
+            <p className="eyebrow">Onboarding</p>
+            <h2>Nuevo cliente</h2>
+          </div>
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar formulario">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="form-grid">
+          <label>
+            Nombre completo
+            <input name="name" placeholder="Ej. Laura Méndez" required />
+          </label>
+          <label>
+            Teléfono
+            <input name="phone" placeholder="(809) 555-0000" required />
+          </label>
+          <label>
+            Cédula / identificación
+            <input name="cedula" placeholder="037-0000000-0" />
+          </label>
+          <label className="wide-span">
+            Dirección
+            <input name="address" placeholder="Sector, ciudad o punto de referencia" required />
+          </label>
+          <label>
+            Cobrador asignado
+            <select name="collector" defaultValue="Rafael Santos">
+              <option>Rafael Santos</option>
+              <option>Carlos Núñez</option>
+            </select>
+          </label>
+          <label>
+            Estado
+            <select name="status" defaultValue="Activo">
+              <option>Activo</option>
+              <option>Atrasado</option>
+              <option>Pagado</option>
+              <option>Inactivo</option>
+            </select>
+          </label>
+          <label className="full-span">
+            Referencias
+            <textarea name="references" placeholder="Nombre, teléfono, negocio o relación de la referencia" />
+          </label>
+          <label className="full-span">
+            Notas
+            <textarea name="notes" placeholder="Observaciones del cliente, negocio, ruta o condiciones iniciales" />
+          </label>
+        </div>
+        <div className="modal-actions">
+          <button className="secondary-button" type="button" onClick={onClose}>Cancelar</button>
+          <button className="primary-button" type="submit">
+            <CheckCircle2 size={18} />
+            Guardar cliente
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function LoanForm({ customers, onClose }: { customers: Customer[]; onClose: () => void }) {
   return (
     <div className="modal-layer">
       <div className="modal-card">

@@ -808,6 +808,10 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.wide-span {
+  grid-column: span 2;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -890,6 +894,10 @@ textarea {
   .reports-grid,
   .renewal-grid {
     grid-template-columns: 1fr;
+  }
+
+  .wide-span {
+    grid-column: 1;
   }
 
   .profit-stack {
