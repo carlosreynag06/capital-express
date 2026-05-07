@@ -346,8 +346,6 @@ p {
   align-items: start;
 }
 
-.customers-layout.has-detail,
-.loans-layout.has-detail,
 .liquidation-layout {
   grid-template-columns: minmax(0, 1fr) 390px;
 }
@@ -394,10 +392,31 @@ p {
   font-weight: 900;
 }
 
+.drawer-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 22;
+  pointer-events: none;
+}
+
+.drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(8, 18, 15, 0.28);
+  pointer-events: auto;
+}
+
 .detail-sheet {
-  position: sticky;
-  top: 26px;
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(520px, calc(100vw - 22px));
+  max-width: 100%;
+  overflow-y: auto;
   padding: 20px;
+  border-radius: 8px 0 0 8px;
+  pointer-events: auto;
+  animation: drawer-in 0.2s ease-out;
 }
 
 .info-grid {
@@ -452,6 +471,24 @@ table {
   min-width: 680px;
 }
 
+.table-person {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 240px;
+}
+
+.table-person strong,
+.table-person span {
+  display: block;
+}
+
+.table-person span {
+  margin-top: 3px;
+  color: #64756f;
+  font-size: 12px;
+}
+
 th {
   color: #60746e;
   font-size: 12px;
@@ -477,6 +514,18 @@ td {
 
 .interactive-row:hover td {
   background: #f2f6fb;
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .status {
@@ -708,10 +757,6 @@ textarea {
   .loans-layout,
   .liquidation-layout {
     grid-template-columns: 1fr;
-  }
-
-  .detail-sheet {
-    position: static;
   }
 
   .reports-grid {

@@ -28,6 +28,7 @@ import {
   Tooltip,
   XAxis,
 } from 'recharts'
+import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import './App.css'
 
@@ -169,6 +170,13 @@ const initialLoans: Loan[] = [
     graceDays: 3,
     status: 'Activo',
   },
+]
+
+const loanHistory = [
+  { customerId: 1, id: 1094, principal: 4000, total: 5200, closed: '2026-03-18', status: 'Pagado' },
+  { customerId: 2, id: 1110, principal: 5000, total: 6525, closed: '2026-03-25', status: 'Renovado' },
+  { customerId: 3, id: 1088, principal: 5000, total: 6525, closed: '2026-02-28', status: 'Pagado' },
+  { customerId: 4, id: 1122, principal: 7000, total: 9100, closed: '2026-04-30', status: 'Pagado' },
 ]
 
 const collectionsTrend = [
@@ -457,7 +465,7 @@ function CustomersView({
   const customerLoans = initialLoans.filter((loan) => loan.customerId === selectedCustomer?.id)
 
   return (
-    <section className={selectedCustomer ? 'customers-layout has-detail' : 'customers-layout'}>
+    <section className="customers-layout">
       <div className="panel table-panel">
         <div className="panel-header">
           <div>
@@ -469,70 +477,107 @@ function CustomersView({
             Nuevo cliente
           </button>
         </div>
-        <div className="customer-list">
-          {customers.map((customer) => (
-            <button
-              className={selectedCustomer?.id === customer.id ? 'customer-card selected' : 'customer-card'}
-              key={customer.id}
-              onClick={() => onSelectCustomer(customer)}
-            >
-              <div className="avatar">{customer.name.slice(0, 2)}</div>
-              <div>
-                <strong>{customer.name}</strong>
-                <span>{customer.phone} · {customer.address}</span>
-              </div>
-              <StatusBadge status={customer.status} />
-            </button>
-          ))}
+        <div className="responsive-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Telefono</th>
+                <th>Direccion</th>
+                <th>Cobrador</th>
+                <th>Estado</th>
+                <th>Prestamos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {customers.map((customer) => {
+                const loans = initialLoans.filter((loan) => loan.customerId === customer.id)
+
+                return (
+                  <tr className="interactive-row" key={customer.id} onClick={() => onSelectCustomer(customer)}>
+                    <td>
+                      <div className="table-person">
+                        <div className="avatar">{customer.name.slice(0, 2)}</div>
+                        <div>
+                          <strong>{customer.name}</strong>
+                          <span>{customer.cedula}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{customer.phone}</td>
+                    <td>{customer.address}</td>
+                    <td>{customer.collector}</td>
+                    <td><StatusBadge status={customer.status} /></td>
+                    <td>{loans.length} activos</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {selectedCustomer && (
-        <aside className="detail-sheet">
-          <div className="sheet-header">
-            <div>
-              <p className="eyebrow">Ficha del cliente</p>
-              <h2>{selectedCustomer.name}</h2>
-            </div>
-            <button className="icon-button" onClick={onCloseCustomer} aria-label="Cerrar ficha del cliente">
-              <X size={17} />
-            </button>
-          </div>
-          <div className="info-grid">
-            <Info label="Teléfono" value={selectedCustomer.phone} />
-            <Info label="Cédula" value={selectedCustomer.cedula} />
-            <Info label="Dirección" value={selectedCustomer.address} />
-            <Info label="Cobrador" value={selectedCustomer.collector} />
-            <Info label="Referencias" value={selectedCustomer.references} />
-            <Info label="Notas" value={selectedCustomer.notes} />
-          </div>
-
-          <div className="sheet-section">
-            <h3>Préstamos activos</h3>
-            {customerLoans.map((loan) => (
-              <button className="loan-mini" key={loan.id} onClick={() => onOpenLoan(loan)}>
-                <div>
-                  <strong>#{loan.id} · {formatMoney(loan.principal)}</strong>
-                  <span>{loan.frequency} · {loan.paidPayments}/{loan.payments} cuotas</span>
-                </div>
-                <ChevronRight size={17} />
+        <DetailDrawer onClose={onCloseCustomer} label="Cerrar ficha del cliente">
+          <aside className="detail-sheet">
+            <div className="sheet-header">
+              <div>
+                <p className="eyebrow">Ficha del cliente</p>
+                <h2>{selectedCustomer.name}</h2>
+              </div>
+              <button className="icon-button" onClick={onCloseCustomer} aria-label="Cerrar ficha del cliente">
+                <X size={17} />
               </button>
-            ))}
-          </div>
+            </div>
+            <div className="info-grid">
+              <Info label="Telefono" value={selectedCustomer.phone} />
+              <Info label="Cedula" value={selectedCustomer.cedula} />
+              <Info label="Direccion" value={selectedCustomer.address} />
+              <Info label="Cobrador" value={selectedCustomer.collector} />
+              <Info label="Referencias" value={selectedCustomer.references} />
+              <Info label="Notas" value={selectedCustomer.notes} />
+            </div>
 
-          <div className="sheet-section">
-            <h3>Historial reciente</h3>
-            {payments
-              .filter((payment) => payment.customer === selectedCustomer.name)
-              .map((payment) => (
-                <div className="history-row" key={`${payment.customer}-${payment.cuota}`}>
-                  <span>{payment.date}</span>
-                  <strong>{formatMoney(payment.amount)}</strong>
-                  <small>{payment.status}</small>
-                </div>
+            <div className="sheet-section">
+              <h3>Prestamos activos</h3>
+              {customerLoans.map((loan) => (
+                <button className="loan-mini" key={loan.id} onClick={() => onOpenLoan(loan)}>
+                  <div>
+                    <strong>#{loan.id} · {formatMoney(loan.principal)}</strong>
+                    <span>{loan.frequency} · {loan.paidPayments}/{loan.payments} cuotas</span>
+                  </div>
+                  <ChevronRight size={17} />
+                </button>
               ))}
-          </div>
-        </aside>
+            </div>
+
+            <div className="sheet-section">
+              <h3>Historial reciente</h3>
+              {payments
+                .filter((payment) => payment.customer === selectedCustomer.name)
+                .map((payment) => (
+                  <div className="history-row" key={`${payment.customer}-${payment.cuota}`}>
+                    <span>{payment.date}</span>
+                    <strong>{formatMoney(payment.amount)}</strong>
+                    <small>{payment.status}</small>
+                  </div>
+                ))}
+            </div>
+
+            <div className="sheet-section">
+              <h3>Historial de prestamos</h3>
+              {loanHistory
+                .filter((loan) => loan.customerId === selectedCustomer.id)
+                .map((loan) => (
+                  <div className="history-row" key={loan.id}>
+                    <span>#{loan.id} · {loan.closed}</span>
+                    <strong>{formatMoney(loan.total)}</strong>
+                    <small>{loan.status}</small>
+                  </div>
+                ))}
+            </div>
+          </aside>
+        </DetailDrawer>
       )}
     </section>
   )
@@ -554,7 +599,7 @@ function LoansView({
   onNewLoan: () => void
 }) {
   return (
-    <section className={selectedLoan ? 'loans-layout has-detail' : 'loans-layout'}>
+    <section className="loans-layout">
       <div className="panel table-panel">
         <div className="panel-header">
           <div>
@@ -587,7 +632,14 @@ function LoansView({
                   <td>{loan.paidPayments}/{loan.payments}</td>
                   <td><StatusBadge status={loan.status} /></td>
                   <td>
-                    <button className="icon-button" onClick={() => onOpenLoan(loan)} aria-label="Abrir préstamo">
+                    <button
+                      className="icon-button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onOpenLoan(loan)
+                      }}
+                      aria-label="Abrir préstamo"
+                    >
                       <MoreHorizontal size={18} />
                     </button>
                   </td>
@@ -599,14 +651,33 @@ function LoansView({
       </div>
 
       {selectedLoan && (
-        <LoanDetail
-          loan={selectedLoan}
-          renewalPreview={renewalPreview}
-          onClose={onCloseLoan}
-          onRenew={() => onRenew(selectedLoan)}
-        />
+        <DetailDrawer onClose={onCloseLoan} label="Cerrar detalle del préstamo">
+          <LoanDetail
+            loan={selectedLoan}
+            renewalPreview={renewalPreview}
+            onClose={onCloseLoan}
+            onRenew={() => onRenew(selectedLoan)}
+          />
+        </DetailDrawer>
       )}
     </section>
+  )
+}
+
+function DetailDrawer({
+  children,
+  label,
+  onClose,
+}: {
+  children: ReactNode
+  label: string
+  onClose: () => void
+}) {
+  return (
+    <div className="drawer-layer">
+      <button className="drawer-backdrop" onClick={onClose} aria-label={label} />
+      {children}
+    </div>
   )
 }
 
