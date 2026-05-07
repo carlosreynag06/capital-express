@@ -276,25 +276,8 @@ p {
   line-height: 1.15;
 }
 
-.hero-panel {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 20px;
-  align-items: center;
-  background: #101828;
-  color: #f8fbf7;
-}
-
-.hero-panel h2 {
-  max-width: 620px;
-  color: #ffffff;
-  font-size: 30px;
-}
-
-.hero-panel p:not(.eyebrow) {
-  max-width: 700px;
-  margin-top: 10px;
-  color: rgba(248, 251, 247, 0.72);
+.renewal-panel {
+  grid-column: 1 / -1;
 }
 
 .profit-stack {
@@ -315,6 +298,105 @@ p {
   margin: 8px 0 12px;
   color: #c99700;
   font-size: 31px;
+}
+
+.profit-stack.light {
+  min-width: 0;
+  background: #f8fafc;
+}
+
+.profit-stack.light span,
+.profit-stack.light small {
+  color: #64756f;
+}
+
+.profit-stack.light strong {
+  color: #1d4ed8;
+}
+
+.rule-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  color: #101828;
+  background: #f4e8bf;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.renewal-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.renewal-card {
+  display: grid;
+  gap: 13px;
+  min-height: 188px;
+  padding: 15px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  text-align: left;
+}
+
+.renewal-card:hover {
+  border-color: #1d4ed8;
+  box-shadow: 0 16px 34px rgba(17, 24, 39, 0.1);
+}
+
+.renewal-card-top {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.renewal-card-top strong,
+.renewal-card-top span {
+  display: block;
+}
+
+.renewal-card-top span,
+.renewal-money span,
+.renewal-facts span {
+  color: #64756f;
+  font-size: 12px;
+}
+
+.renewal-progress {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.renewal-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #1d4ed8;
+}
+
+.renewal-facts,
+.renewal-money {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.renewal-facts strong {
+  color: #101828;
+  font-size: 20px;
+}
+
+.renewal-money {
+  align-items: flex-start;
+  flex-direction: column;
 }
 
 .chart-wrap {
@@ -763,6 +845,10 @@ textarea {
   .reports-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .renewal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
@@ -782,16 +868,9 @@ textarea {
 
   .metric-grid,
   .form-grid,
-  .reports-grid {
+  .reports-grid,
+  .renewal-grid {
     grid-template-columns: 1fr;
-  }
-
-  .hero-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-panel h2 {
-    font-size: 25px;
   }
 
   .profit-stack {

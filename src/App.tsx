@@ -122,6 +122,72 @@ const customers: Customer[] = [
     notes: 'Historial limpio. Puede aplicar a monto mayor.',
     references: 'Francis B. / Ferretería Norte',
   },
+  {
+    id: 5,
+    name: 'Claudia Rosario',
+    phone: '(829) 555-7812',
+    address: 'Cristo Rey, Puerto Plata',
+    cedula: '037-2048193-5',
+    collector: 'Rafael Santos',
+    status: 'Activo',
+    notes: 'Vende ropa por encargo. Buen flujo semanal.',
+    references: 'Lina R. / Boutique Claudia',
+  },
+  {
+    id: 6,
+    name: 'Andrés Peralta',
+    phone: '(849) 555-6744',
+    address: 'San Marcos, Puerto Plata',
+    cedula: '037-7742011-9',
+    collector: 'Carlos Núñez',
+    status: 'Activo',
+    notes: 'Cliente con negocio de repuestos. Solicita renovaciones frecuentes.',
+    references: 'Nelson P. / Repuestos La 30',
+  },
+  {
+    id: 7,
+    name: 'Nathalie Gómez',
+    phone: '(809) 555-3380',
+    address: 'El Javillar, Puerto Plata',
+    cedula: '037-6639104-1',
+    collector: 'Rafael Santos',
+    status: 'Activo',
+    notes: 'Pago diario en ruta de la tarde.',
+    references: 'Carolina G. / Estética Nath',
+  },
+  {
+    id: 8,
+    name: 'Luis Almanzar',
+    phone: '(829) 555-0449',
+    address: 'Avenida Colón, Puerto Plata',
+    cedula: '037-8812376-0',
+    collector: 'Carlos Núñez',
+    status: 'Atrasado',
+    notes: 'Revisar antes de aprobar renovación.',
+    references: 'José A. / Taller Colón',
+  },
+  {
+    id: 9,
+    name: 'Estefany Mejía',
+    phone: '(849) 555-9027',
+    address: 'Urbanización Atlántica, Puerto Plata',
+    cedula: '037-5483920-6',
+    collector: 'Rafael Santos',
+    status: 'Activo',
+    notes: 'Cliente nueva, todavía no cumple regla de renovación.',
+    references: 'Marta M. / Colmado Atlántico',
+  },
+  {
+    id: 10,
+    name: 'Héctor Polanco',
+    phone: '(809) 555-1185',
+    address: 'La Javilla, Puerto Plata',
+    cedula: '037-3382190-4',
+    collector: 'Carlos Núñez',
+    status: 'Activo',
+    notes: 'Pago semanal, seguimiento los sábados.',
+    references: 'Ramón P. / Ruta La Javilla',
+  },
 ]
 
 const initialLoans: Loan[] = [
@@ -170,6 +236,96 @@ const initialLoans: Loan[] = [
     graceDays: 3,
     status: 'Activo',
   },
+  {
+    id: 1204,
+    customerId: 5,
+    principal: 6000,
+    paymentAmount: 175,
+    frequency: 'Diario',
+    payments: 45,
+    paidPayments: 24,
+    startDate: '2026-04-09',
+    endDate: '2026-05-30',
+    collector: 'Rafael Santos',
+    lateFee: 4,
+    graceDays: 3,
+    status: 'Activo',
+  },
+  {
+    id: 1205,
+    customerId: 6,
+    principal: 10000,
+    paymentAmount: 315,
+    frequency: 'Diario',
+    payments: 45,
+    paidPayments: 28,
+    startDate: '2026-04-02',
+    endDate: '2026-05-23',
+    collector: 'Carlos Núñez',
+    lateFee: 5,
+    graceDays: 3,
+    status: 'Activo',
+  },
+  {
+    id: 1206,
+    customerId: 7,
+    principal: 5000,
+    paymentAmount: 145,
+    frequency: 'Diario',
+    payments: 45,
+    paidPayments: 34,
+    startDate: '2026-03-24',
+    endDate: '2026-05-14',
+    collector: 'Rafael Santos',
+    lateFee: 4,
+    graceDays: 3,
+    status: 'Activo',
+  },
+  {
+    id: 1207,
+    customerId: 8,
+    principal: 7000,
+    paymentAmount: 210,
+    frequency: 'Diario',
+    payments: 45,
+    paidPayments: 23,
+    startDate: '2026-04-10',
+    endDate: '2026-05-31',
+    collector: 'Carlos Núñez',
+    lateFee: 5,
+    graceDays: 2,
+    status: 'Atrasado',
+  },
+  {
+    id: 1208,
+    customerId: 9,
+    principal: 4000,
+    paymentAmount: 125,
+    frequency: 'Diario',
+    payments: 45,
+    paidPayments: 14,
+    startDate: '2026-04-23',
+    endDate: '2026-06-13',
+    collector: 'Rafael Santos',
+    lateFee: 4,
+    graceDays: 3,
+    status: 'Activo',
+  },
+  {
+    id: 1209,
+    customerId: 10,
+    principal: 12000,
+    paymentAmount: 1850,
+    frequency: 'Semanal',
+    payments: 10,
+    paidPayments: 6,
+    startDate: '2026-03-28',
+    endDate: '2026-06-06',
+    collector: 'Carlos Núñez',
+    lateFee: 3,
+    graceDays: 4,
+    status: 'Activo',
+  },
 ]
 
 const loanHistory = [
@@ -177,6 +333,10 @@ const loanHistory = [
   { customerId: 2, id: 1110, principal: 5000, total: 6525, closed: '2026-03-25', status: 'Renovado' },
   { customerId: 3, id: 1088, principal: 5000, total: 6525, closed: '2026-02-28', status: 'Pagado' },
   { customerId: 4, id: 1122, principal: 7000, total: 9100, closed: '2026-04-30', status: 'Pagado' },
+  { customerId: 5, id: 1136, principal: 5000, total: 6525, closed: '2026-04-12', status: 'Pagado' },
+  { customerId: 6, id: 1144, principal: 8000, total: 10350, closed: '2026-04-18', status: 'Renovado' },
+  { customerId: 7, id: 1151, principal: 3500, total: 4550, closed: '2026-03-30', status: 'Pagado' },
+  { customerId: 10, id: 1160, principal: 9000, total: 11700, closed: '2026-04-20', status: 'Pagado' },
 ]
 
 const collectionsTrend = [
@@ -193,6 +353,11 @@ const payments = [
   { customer: 'Joel Martínez', amount: 470, cuota: '17-18/45', date: 'Hoy', status: 'Tarde' },
   { customer: 'Yudelka Peña', amount: 145, cuota: '30/45', date: 'Ayer', status: 'A tiempo' },
   { customer: 'Ramón Batista', amount: 320, cuota: 'Final', date: '30 Abr', status: 'Cerrado' },
+  { customer: 'Claudia Rosario', amount: 175, cuota: '24/45', date: 'Hoy', status: 'A tiempo' },
+  { customer: 'Andrés Peralta', amount: 315, cuota: '28/45', date: 'Hoy', status: 'A tiempo' },
+  { customer: 'Nathalie Gómez', amount: 145, cuota: '34/45', date: 'Hoy', status: 'A tiempo' },
+  { customer: 'Luis Almanzar', amount: 210, cuota: '23/45', date: 'Ayer', status: 'Tarde' },
+  { customer: 'Héctor Polanco', amount: 1850, cuota: '6/10', date: 'Sáb', status: 'A tiempo' },
 ]
 
 const expenses = [
@@ -246,7 +411,7 @@ function App() {
   }, [])
 
   const activeLoans = initialLoans.filter((loan) => loan.status === 'Activo' || loan.status === 'Atrasado')
-  const eligibleRenewals = initialLoans.filter((loan) => loan.paidPayments >= 30)
+  const eligibleRenewals = initialLoans.filter((loan) => loan.paidPayments >= Math.ceil(loan.payments * 0.5))
 
   function openLoan(loan: Loan) {
     setSelectedLoan(loan)
@@ -382,22 +547,44 @@ function Dashboard({
         <Metric icon={CalendarDays} label="Cobrado hoy" value={formatMoney(totals.collectedToday)} />
       </div>
 
-      <section className="panel hero-panel">
-        <div>
-          <p className="eyebrow">Resumen de mayo</p>
-          <h2>Control claro entre principal, ganancia y gastos.</h2>
-          <p>
-            La liquidación se calcula para revisión, con confirmación manual el día 30. Nada se distribuye
-            automáticamente.
-          </p>
-        </div>
-        <div className="profit-stack">
-          <span>Ganancia neta estimada</span>
-          <strong>{formatMoney(totals.netProfit)}</strong>
+      <section className="panel renewal-panel">
+        <div className="panel-header">
           <div>
-            <small>Inversionista 60%: {formatMoney(totals.investor)}</small>
-            <small>Socio cobrador 40%: {formatMoney(totals.partner)}</small>
+            <p className="eyebrow">Renovaciones</p>
+            <h2>Clientes elegibles</h2>
           </div>
+          <span className="rule-chip">Regla 50% de vida del préstamo</span>
+        </div>
+        <div className="renewal-grid">
+          {eligibleRenewals.map((loan) => {
+            const customer = getCustomer(loan.customerId)
+            const progress = Math.round((loan.paidPayments / loan.payments) * 100)
+            const paidAmount = loan.paymentAmount * loan.paidPayments
+            const totalExpected = loan.paymentAmount * loan.payments
+
+            return (
+              <button className="renewal-card" key={loan.id} onClick={() => onOpenLoan(loan)}>
+                <div className="renewal-card-top">
+                  <div className="avatar">{customer.name.slice(0, 2)}</div>
+                  <div>
+                    <strong>{customer.name}</strong>
+                    <span>Préstamo #{loan.id} · {loan.frequency}</span>
+                  </div>
+                </div>
+                <div className="renewal-progress">
+                  <span style={{ width: `${progress}%` }} />
+                </div>
+                <div className="renewal-facts">
+                  <span>{loan.paidPayments}/{loan.payments} cuotas</span>
+                  <strong>{progress}%</strong>
+                </div>
+                <div className="renewal-money">
+                  <span>Pagado: {formatMoney(paidAmount)}</span>
+                  <span>Total: {formatMoney(totalExpected)}</span>
+                </div>
+              </button>
+            )
+          })}
         </div>
       </section>
 
@@ -414,37 +601,34 @@ function Dashboard({
             <AreaChart data={collectionsTrend}>
               <defs>
                 <linearGradient id="collectionGradient" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="5%" stopColor="#2f5d8c" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#2f5d8c" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#1d4ed8" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="day" axisLine={false} tickLine={false} />
               <Tooltip formatter={(value) => formatMoney(Number(value))} />
-              <Area type="monotone" dataKey="value" stroke="#2f5d8c" fill="url(#collectionGradient)" strokeWidth={3} />
+              <Area type="monotone" dataKey="value" stroke="#1d4ed8" fill="url(#collectionGradient)" strokeWidth={3} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel profit-panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Renovaciones</p>
-            <h2>Clientes elegibles</h2>
+            <p className="eyebrow">Liquidación</p>
+            <h2>Estimado mensual</h2>
           </div>
           <RefreshCcw size={20} />
         </div>
-        <div className="stack-list">
-          {eligibleRenewals.map((loan) => (
-            <button className="list-row interactive" key={loan.id} onClick={() => onOpenLoan(loan)}>
-              <div>
-                <strong>{getCustomer(loan.customerId).name}</strong>
-                <span>Pago {loan.paidPayments} de {loan.payments}</span>
-              </div>
-              <ChevronRight size={18} />
-            </button>
-          ))}
+        <div className="profit-stack light">
+          <span>Ganancia neta estimada</span>
+          <strong>{formatMoney(totals.netProfit)}</strong>
+          <div>
+            <small>Inversionista 60%: {formatMoney(totals.investor)}</small>
+            <small>Socio cobrador 40%: {formatMoney(totals.partner)}</small>
+          </div>
         </div>
       </section>
     </section>
