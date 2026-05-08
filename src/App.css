@@ -735,7 +735,7 @@ td {
   margin-bottom: 16px;
   padding: 15px;
   border-radius: 8px;
-  background: #101828;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 48%, #60a5fa 100%);
   color: #ffffff;
 }
 
@@ -749,29 +749,30 @@ td {
   height: 9px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .progress-track span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #c99700;
+  background: #bfdbfe;
 }
 
 .renew-button {
   width: 100%;
   margin-top: 18px;
-  color: #101828;
-  background: #c99700;
+  color: #ffffff;
+  background: #1d4ed8;
+  box-shadow: 0 12px 28px rgba(29, 78, 216, 0.22);
 }
 
 .renewal-box {
   margin-top: 14px;
   padding: 15px;
-  border: 1px solid #d1dfd6;
+  border: 1px solid #bfdbfe;
   border-radius: 8px;
-  background: #f8fafc;
+  background: #eff6ff;
 }
 
 .renewal-box h3 {
@@ -784,7 +785,7 @@ td {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 0;
-  border-bottom: 1px solid #e2eae4;
+  border-bottom: 1px solid #dbeafe;
 }
 
 .calc-line.strong {
