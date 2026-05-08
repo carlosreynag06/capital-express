@@ -208,11 +208,22 @@ p {
   gap: 18px;
 }
 
+.payments-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 18px;
+  align-items: start;
+}
+
 .metric-grid {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
+}
+
+.metric-grid.compact {
+  grid-column: 1 / -1;
 }
 
 .metric-card,
@@ -961,6 +972,7 @@ textarea {
   }
 
   .content-grid,
+  .payments-layout,
   .customers-layout,
   .loans-layout,
   .liquidation-layout {

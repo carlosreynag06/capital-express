@@ -73,6 +73,20 @@ type PaymentContext = {
   source: 'cliente' | 'prestamo'
 }
 
+type PaymentRecord = {
+  id: number
+  customerId: number
+  loanId: number
+  date: string
+  amount: number
+  paymentNumber: number
+  frequency: Frequency
+  collector: string
+  notes: string
+  status: 'A tiempo' | 'Tarde' | 'Cerrado'
+  lateFeeAmount: number
+}
+
 type DashboardTotals = {
   capital: number
   lentOut: number
@@ -357,16 +371,16 @@ const collectionsTrend = [
   { day: 'Sáb', value: 13500 },
 ]
 
-const payments = [
-  { customer: 'Marisol De la Cruz', amount: 145, cuota: '23/45', date: 'Hoy', status: 'A tiempo' },
-  { customer: 'Joel Martínez', amount: 470, cuota: '17-18/45', date: 'Hoy', status: 'Tarde' },
-  { customer: 'Yudelka Peña', amount: 145, cuota: '30/45', date: 'Ayer', status: 'A tiempo' },
-  { customer: 'Ramón Batista', amount: 320, cuota: 'Final', date: '30 Abr', status: 'Cerrado' },
-  { customer: 'Claudia Rosario', amount: 175, cuota: '24/45', date: 'Hoy', status: 'A tiempo' },
-  { customer: 'Andrés Peralta', amount: 315, cuota: '28/45', date: 'Hoy', status: 'A tiempo' },
-  { customer: 'Nathalie Gómez', amount: 145, cuota: '34/45', date: 'Hoy', status: 'A tiempo' },
-  { customer: 'Luis Almanzar', amount: 210, cuota: '23/45', date: 'Ayer', status: 'Tarde' },
-  { customer: 'Héctor Polanco', amount: 1850, cuota: '6/10', date: 'Sáb', status: 'A tiempo' },
+const initialPayments: PaymentRecord[] = [
+  { id: 1, customerId: 1, loanId: 1201, amount: 145, paymentNumber: 23, frequency: 'Diario', date: '2026-05-08', collector: 'Rafael Santos', notes: 'Cobro regular en ruta.', status: 'A tiempo', lateFeeAmount: 0 },
+  { id: 2, customerId: 2, loanId: 1202, amount: 470, paymentNumber: 18, frequency: 'Diario', date: '2026-05-08', collector: 'Rafael Santos', notes: 'Cubrió dos cuotas atrasadas.', status: 'Tarde', lateFeeAmount: 55 },
+  { id: 3, customerId: 3, loanId: 1203, amount: 145, paymentNumber: 30, frequency: 'Diario', date: '2026-05-07', collector: 'Carlos Núñez', notes: 'Cliente elegible para renovación.', status: 'A tiempo', lateFeeAmount: 0 },
+  { id: 4, customerId: 4, loanId: 1122, amount: 320, paymentNumber: 45, frequency: 'Diario', date: '2026-04-30', collector: 'Carlos Núñez', notes: 'Préstamo cerrado.', status: 'Cerrado', lateFeeAmount: 0 },
+  { id: 5, customerId: 5, loanId: 1204, amount: 175, paymentNumber: 24, frequency: 'Diario', date: '2026-05-08', collector: 'Rafael Santos', notes: 'Pago en efectivo.', status: 'A tiempo', lateFeeAmount: 0 },
+  { id: 6, customerId: 6, loanId: 1205, amount: 315, paymentNumber: 28, frequency: 'Diario', date: '2026-05-08', collector: 'Carlos Núñez', notes: 'Pago recibido en taller.', status: 'A tiempo', lateFeeAmount: 0 },
+  { id: 7, customerId: 7, loanId: 1206, amount: 145, paymentNumber: 34, frequency: 'Diario', date: '2026-05-08', collector: 'Rafael Santos', notes: 'Sin novedad.', status: 'A tiempo', lateFeeAmount: 0 },
+  { id: 8, customerId: 8, loanId: 1207, amount: 210, paymentNumber: 23, frequency: 'Diario', date: '2026-05-07', collector: 'Carlos Núñez', notes: 'Pago fuera de fecha.', status: 'Tarde', lateFeeAmount: 42 },
+  { id: 9, customerId: 10, loanId: 1209, amount: 1850, paymentNumber: 6, frequency: 'Semanal', date: '2026-05-02', collector: 'Carlos Núñez', notes: 'Pago semanal.', status: 'A tiempo', lateFeeAmount: 0 },
 ]
 
 const expenses = [
@@ -443,6 +457,7 @@ function App() {
   const [showCustomerForm, setShowCustomerForm] = useState(false)
   const [customerRecords, setCustomerRecords] = useState<Customer[]>(initialCustomers)
   const [loanRecords, setLoanRecords] = useState<Loan[]>(initialLoans)
+  const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>(initialPayments)
   const [renewalPreview, setRenewalPreview] = useState<Loan | null>(null)
   const [loanCustomerId, setLoanCustomerId] = useState<number | undefined>()
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
@@ -454,6 +469,9 @@ function App() {
       .reduce((sum, loan) => sum + loan.principal, 0)
     const expected = loanRecords.reduce((sum, loan) => sum + loan.paymentAmount * loan.payments, 0)
     const collected = loanRecords.reduce((sum, loan) => sum + loan.paymentAmount * loan.paidPayments, 0)
+    const collectedToday = paymentRecords
+      .filter((payment) => payment.date === formatDateInput(new Date()))
+      .reduce((sum, payment) => sum + payment.amount + payment.lateFeeAmount, 0)
     const principalRecovered = Math.min(collected, loanRecords.reduce((sum, loan) => sum + loan.principal, 0))
     const expensesTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0)
     const grossProfit = Math.max(0, collected - principalRecovered)
@@ -463,7 +481,7 @@ function App() {
       capital: 500000,
       lentOut,
       expected,
-      collectedToday: 7600,
+      collectedToday,
       principalRecovered,
       grossProfit,
       expensesTotal,
@@ -471,7 +489,7 @@ function App() {
       investor: netProfit * 0.6,
       partner: netProfit * 0.4,
     }
-  }, [loanRecords])
+  }, [loanRecords, paymentRecords])
 
   const activeLoans = loanRecords.filter((loan) => loan.status === 'Activo' || loan.status === 'Atrasado')
   const eligibleRenewals = loanRecords.filter(
@@ -523,6 +541,33 @@ function App() {
   function openPaymentContext(context: PaymentContext) {
     setPaymentContext(context)
     setActiveView('Cuotas')
+  }
+
+  function registerPayment(payment: PaymentRecord) {
+    setPaymentRecords((records) => [payment, ...records])
+    setLoanRecords((records) =>
+      records.map((loan) => {
+        if (loan.id !== payment.loanId) {
+          return loan
+        }
+
+        const paidPayments = Math.min(loan.payments, Math.max(loan.paidPayments, payment.paymentNumber))
+        return {
+          ...loan,
+          paidPayments,
+          status: paidPayments >= loan.payments ? 'Pagado' : loan.status,
+        }
+      }),
+    )
+    setSelectedLoan((loan) =>
+      loan?.id === payment.loanId
+        ? {
+            ...loan,
+            paidPayments: Math.min(loan.payments, Math.max(loan.paidPayments, payment.paymentNumber)),
+            status: Math.min(loan.payments, Math.max(loan.paidPayments, payment.paymentNumber)) >= loan.payments ? 'Pagado' : loan.status,
+          }
+        : loan,
+    )
   }
 
   return (
@@ -608,6 +653,7 @@ function App() {
           <CustomersView
             customers={customerRecords}
             loans={loanRecords}
+            payments={paymentRecords}
             selectedCustomer={selectedCustomer}
             onSelectCustomer={setSelectedCustomer}
             onCloseCustomer={() => setSelectedCustomer(null)}
@@ -673,6 +719,11 @@ function App() {
             context={paymentContext}
             customer={paymentContext ? getCustomer(customerRecords, paymentContext.customerId) : null}
             loan={paymentContext?.loanId ? loanRecords.find((loan) => loan.id === paymentContext.loanId) ?? null : null}
+            customers={customerRecords}
+            loans={loanRecords}
+            payments={paymentRecords}
+            nextId={getNextId(paymentRecords)}
+            onRegisterPayment={registerPayment}
           />
         )}
         {activeView === 'Liquidación' && <LiquidationView totals={totals} />}
@@ -836,6 +887,7 @@ function Dashboard({
 function CustomersView({
   customers,
   loans,
+  payments,
   selectedCustomer,
   onSelectCustomer,
   onCloseCustomer,
@@ -848,6 +900,7 @@ function CustomersView({
 }: {
   customers: Customer[]
   loans: Loan[]
+  payments: PaymentRecord[]
   selectedCustomer: Customer | null
   onSelectCustomer: (customer: Customer) => void
   onCloseCustomer: () => void
@@ -1019,9 +1072,9 @@ function CustomersView({
             <div className="sheet-section">
               <h3>Historial reciente</h3>
               {payments
-                .filter((payment) => payment.customer === selectedCustomer.name)
+                .filter((payment) => payment.customerId === selectedCustomer.id)
                 .map((payment) => (
-                  <div className="history-row" key={`${payment.customer}-${payment.cuota}`}>
+                  <div className="history-row" key={payment.id}>
                     <span>{payment.date}</span>
                     <strong>{formatMoney(payment.amount)}</strong>
                     <small>{payment.status}</small>
@@ -1569,25 +1622,41 @@ function PaymentsView({
   context,
   customer,
   loan,
+  customers,
+  loans,
+  payments,
+  nextId,
+  onRegisterPayment,
 }: {
   context: PaymentContext | null
   customer: Customer | null
   loan: Loan | null
+  customers: Customer[]
+  loans: Loan[]
+  payments: PaymentRecord[]
+  nextId: number
+  onRegisterPayment: (payment: PaymentRecord) => void
 }) {
+  const [showPaymentForm, setShowPaymentForm] = useState(Boolean(context))
+  const [selectedPaymentLoan, setSelectedPaymentLoan] = useState<Loan | null>(loan)
+  const activeLoans = loans.filter((loanRecord) => loanRecord.status === 'Activo' || loanRecord.status === 'Atrasado')
+  const collectedToday = payments
+    .filter((payment) => payment.date === formatDateInput(new Date()))
+    .reduce((sum, payment) => sum + payment.amount + payment.lateFeeAmount, 0)
+  const lateFees = payments.reduce((sum, payment) => sum + payment.lateFeeAmount, 0)
+  const latePayments = payments.filter((payment) => payment.status === 'Tarde').length
+
   return (
-    <section className="panel table-panel">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">Cuotas</p>
-          <h2>Pagos recientes</h2>
-        </div>
-        <button className="secondary-button">
-          <Plus size={17} />
-          Registrar pago
-        </button>
+    <section className="payments-layout">
+      <div className="metric-grid compact">
+        <Metric icon={ReceiptText} label="Cobrado hoy" value={formatMoney(collectedToday)} />
+        <Metric icon={ClipboardList} label="Cuotas registradas" value={payments.length.toString()} />
+        <Metric icon={CalendarDays} label="Pagos tarde" value={latePayments.toString()} />
+        <Metric icon={Coins} label="Mora cobrada" value={formatMoney(lateFees)} />
       </div>
+
       {context && customer && (
-        <div className="context-strip">
+        <div className="context-strip full-span">
           <div>
             <span>Contexto seleccionado</span>
             <strong>
@@ -1598,31 +1667,247 @@ function PaymentsView({
           <small>{context.source === 'prestamo' ? 'Acción desde préstamos' : 'Acción desde clientes'}</small>
         </div>
       )}
-      <div className="responsive-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Cuota</th>
-              <th>Fecha</th>
-              <th>Monto</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {payments.map((payment) => (
-              <tr key={`${payment.customer}-${payment.cuota}`}>
-                <td>{payment.customer}</td>
-                <td>{payment.cuota}</td>
-                <td>{payment.date}</td>
-                <td>{formatMoney(payment.amount)}</td>
-                <td><StatusBadge status={payment.status} /></td>
+
+      <section className="panel table-panel full-span">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Cuotas</p>
+            <h2>Pagos recientes</h2>
+          </div>
+          <button
+            className="primary-button"
+            onClick={() => {
+              setSelectedPaymentLoan(loan)
+              setShowPaymentForm(true)
+            }}
+          >
+            <Plus size={17} />
+            Registrar pago
+          </button>
+        </div>
+        <div className="responsive-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Préstamo</th>
+                <th>Cuota</th>
+                <th>Fecha</th>
+                <th>Monto</th>
+                <th>Mora</th>
+                <th>Cobrador</th>
+                <th>Estado</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {payments.map((payment) => {
+                const paymentCustomer = getCustomer(customers, payment.customerId)
+                const paymentLoan = loans.find((loanRecord) => loanRecord.id === payment.loanId)
+
+                return (
+                  <tr key={payment.id}>
+                    <td>{paymentCustomer?.name ?? 'Cliente eliminado'}</td>
+                    <td>#{payment.loanId}</td>
+                    <td>{payment.paymentNumber}/{paymentLoan?.payments ?? '-'}</td>
+                    <td>{payment.date}</td>
+                    <td>{formatMoney(payment.amount)}</td>
+                    <td>{formatMoney(payment.lateFeeAmount)}</td>
+                    <td>{payment.collector}</td>
+                    <td><StatusBadge status={payment.status} /></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Pendientes</p>
+            <h2>Próximas cuotas</h2>
+          </div>
+          <CalendarDays size={20} />
+        </div>
+        <div className="stack-list">
+          {activeLoans.slice(0, 6).map((loanRecord) => {
+            const loanCustomer = getCustomer(customers, loanRecord.customerId)
+            const nextPayment = Math.min(loanRecord.payments, loanRecord.paidPayments + 1)
+
+            return (
+              <button
+                className="list-row interactive"
+                key={loanRecord.id}
+                onClick={() => {
+                  setSelectedPaymentLoan(loanRecord)
+                  setShowPaymentForm(true)
+                }}
+              >
+                <div>
+                  <strong>{loanCustomer?.name ?? 'Cliente no disponible'}</strong>
+                  <span>Cuota {nextPayment}/{loanRecord.payments} · {formatMoney(loanRecord.paymentAmount)}</span>
+                </div>
+                <StatusBadge status={loanRecord.status === 'Atrasado' ? 'Tarde' : 'A tiempo'} />
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {showPaymentForm && (
+        <PaymentForm
+          context={context}
+          customers={customers}
+          loans={activeLoans}
+          selectedLoan={selectedPaymentLoan}
+          nextId={nextId}
+          onClose={() => setShowPaymentForm(false)}
+          onSubmit={(payment) => {
+            onRegisterPayment(payment)
+            setShowPaymentForm(false)
+          }}
+        />
+      )}
     </section>
+  )
+}
+
+function PaymentForm({
+  context,
+  customers,
+  loans,
+  selectedLoan,
+  nextId,
+  onClose,
+  onSubmit,
+}: {
+  context: PaymentContext | null
+  customers: Customer[]
+  loans: Loan[]
+  selectedLoan: Loan | null
+  nextId: number
+  onClose: () => void
+  onSubmit: (payment: PaymentRecord) => void
+}) {
+  const candidateLoans = context?.customerId
+    ? loans.filter((loan) => loan.customerId === context.customerId)
+    : loans
+  const defaultLoan =
+    (selectedLoan && candidateLoans.some((loan) => loan.id === selectedLoan.id) ? selectedLoan : null) ??
+    candidateLoans.find((loan) => loan.id === context?.loanId) ??
+    candidateLoans[0]
+  const defaultCustomer = defaultLoan ? getCustomer(customers, defaultLoan.customerId) : null
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const form = new FormData(event.currentTarget)
+    const loanId = Number(form.get('loanId') || defaultLoan?.id)
+    const loan = loans.find((loanRecord) => loanRecord.id === loanId) ?? defaultLoan
+    if (!loan) {
+      return
+    }
+
+    const status = String(form.get('status') || 'A tiempo') as PaymentRecord['status']
+    const payment: PaymentRecord = {
+      id: nextId,
+      customerId: loan.customerId,
+      loanId: loan.id,
+      date: String(form.get('date') || formatDateInput(new Date())),
+      amount: Number(form.get('amount') || loan.paymentAmount),
+      paymentNumber: Math.min(loan.payments, Number(form.get('paymentNumber') || loan.paidPayments + 1)),
+      frequency: loan.frequency,
+      collector: String(form.get('collector') || loan.collector),
+      notes: String(form.get('notes') || ''),
+      status,
+      lateFeeAmount: Number(form.get('lateFeeAmount') || 0),
+    }
+
+    onSubmit(payment)
+  }
+
+  return (
+    <div className="modal-layer">
+      <form className="modal-card" onSubmit={handleSubmit}>
+        <div className="modal-header">
+          <div>
+            <p className="eyebrow">Registro de cuota</p>
+            <h2>Registrar pago</h2>
+          </div>
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar formulario">
+            <X size={18} />
+          </button>
+        </div>
+        {defaultCustomer && defaultLoan && (
+          <div className="context-strip">
+            <div>
+              <span>Aplicando a</span>
+              <strong>{defaultCustomer.name} · Préstamo #{defaultLoan.id}</strong>
+            </div>
+            <small>{defaultLoan.frequency}</small>
+          </div>
+        )}
+        <div className="form-grid">
+          <label className="wide-span">
+            Préstamo
+            <select name="loanId" defaultValue={defaultLoan?.id}>
+              {candidateLoans.map((loan) => {
+                const customer = getCustomer(customers, loan.customerId)
+
+                return (
+                  <option value={loan.id} key={loan.id}>
+                    #{loan.id} · {customer?.name ?? 'Cliente no disponible'}
+                  </option>
+                )
+              })}
+            </select>
+          </label>
+          <label>
+            Fecha
+            <input name="date" type="date" defaultValue={formatDateInput(new Date())} />
+          </label>
+          <label>
+            Monto pagado
+            <input name="amount" defaultValue={defaultLoan?.paymentAmount ?? 0} />
+          </label>
+          <label>
+            Número de cuota
+            <input name="paymentNumber" defaultValue={defaultLoan ? Math.min(defaultLoan.payments, defaultLoan.paidPayments + 1) : 1} />
+          </label>
+          <label>
+            Estado
+            <select name="status" defaultValue={defaultLoan?.status === 'Atrasado' ? 'Tarde' : 'A tiempo'}>
+              <option>A tiempo</option>
+              <option>Tarde</option>
+              <option>Cerrado</option>
+            </select>
+          </label>
+          <label>
+            Mora cobrada
+            <input name="lateFeeAmount" defaultValue={defaultLoan?.status === 'Atrasado' ? Math.round(defaultLoan.paymentAmount * (defaultLoan.lateFee / 100)) : 0} />
+          </label>
+          <label>
+            Cobrador
+            <select name="collector" defaultValue={defaultLoan?.collector ?? 'Rafael Santos'}>
+              <option>Rafael Santos</option>
+              <option>Carlos Núñez</option>
+            </select>
+          </label>
+          <label className="full-span">
+            Notas
+            <textarea name="notes" placeholder="Notas del cobro, ruta, promesa de pago o comprobante manual" />
+          </label>
+        </div>
+        <div className="modal-actions">
+          <button className="secondary-button" type="button" onClick={onClose}>Cancelar</button>
+          <button className="primary-button" type="submit">
+            <CheckCircle2 size={18} />
+            Guardar pago
+          </button>
+        </div>
+      </form>
+      </div>
   )
 }
 
