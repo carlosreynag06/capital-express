@@ -112,6 +112,75 @@ main {
   padding: 26px;
 }
 
+.standalone-state,
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f6f7f9;
+}
+
+.standalone-state {
+  align-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.standalone-state h1,
+.login-card h1 {
+  margin: 0;
+  color: #111827;
+}
+
+.standalone-state p {
+  max-width: 460px;
+  color: #64756f;
+}
+
+.login-card {
+  width: min(430px, 100%);
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid #cfd8e3;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(30, 41, 59, 0.1);
+}
+
+.app-alert {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid #cfd8e3;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #111827;
+}
+
+.app-alert span {
+  color: #64756f;
+}
+
+.app-alert.error {
+  border-color: #fecaca;
+  background: #fff1f0;
+}
+
+.app-alert .secondary-button {
+  margin-left: auto;
+}
+
+.empty-state {
+  padding: 28px;
+  color: #64756f;
+  text-align: center;
+}
+
 .topbar {
   display: flex;
   align-items: center;

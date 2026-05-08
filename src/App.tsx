@@ -33,7 +33,9 @@ import {
   XAxis,
 } from 'recharts'
 import type { FormEvent, MouseEvent, ReactNode } from 'react'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
+import { supabase } from './supabaseClient'
 import './App.css'
 
 type CustomerStatus = 'Activo' | 'Atrasado' | 'Pagado' | 'Inactivo'
@@ -42,11 +44,13 @@ type Frequency = 'Diario' | 'Semanal' | 'Mensual'
 
 type Customer = {
   id: number
+  dbId?: string
   name: string
   phone: string
   address: string
   cedula: string
   collector: string
+  collectorDbId?: string
   status: CustomerStatus
   notes: string
   references: string
@@ -54,7 +58,9 @@ type Customer = {
 
 type Loan = {
   id: number
+  dbId?: string
   customerId: number
+  customerDbId?: string
   principal: number
   paymentAmount: number
   frequency: Frequency
@@ -64,6 +70,7 @@ type Loan = {
   startDate: string
   endDate: string
   collector: string
+  collectorDbId?: string
   lateFee: number
   graceDays: number
   notes?: string
@@ -78,6 +85,7 @@ type PaymentContext = {
 
 type Expense = {
   id: number
+  dbId?: string
   type: string
   amount: number
   date: string
@@ -87,13 +95,17 @@ type Expense = {
 
 type PaymentRecord = {
   id: number
+  dbId?: string
   customerId: number
+  customerDbId?: string
   loanId: number
+  loanDbId?: string
   date: string
   amount: number
   paymentNumber: number
   frequency: Frequency
   collector: string
+  collectorDbId?: string
   notes: string
   status: 'A tiempo' | 'Tarde' | 'Cerrado'
   lateFeeAmount: number
@@ -134,6 +146,7 @@ type MonthlyLiquidation = {
 }
 
 type LiquidationRecord = MonthlyLiquidation & {
+  dbId?: string
   confirmedAt: string
 }
 
@@ -500,6 +513,265 @@ function getCloseDateLabel(month: string) {
   }).format(date)
 }
 
+const dbCustomerStatus: Record<string, CustomerStatus> = {
+  active: 'Activo',
+  late: 'Atrasado',
+  paid: 'Pagado',
+  defaulted: 'Atrasado',
+  inactive: 'Inactivo',
+}
+
+const dbLoanStatus: Record<string, LoanStatus> = {
+  active: 'Activo',
+  paid: 'Pagado',
+  renewed: 'Renovado',
+  late: 'Atrasado',
+  defaulted: 'Atrasado',
+  cancelled: 'Pagado',
+}
+
+const dbFrequency: Record<string, Frequency> = {
+  daily: 'Diario',
+  weekly: 'Semanal',
+  monthly: 'Mensual',
+}
+
+const dbPaymentStatus: Record<string, PaymentRecord['status']> = {
+  on_time: 'A tiempo',
+  late: 'Tarde',
+  closed: 'Cerrado',
+}
+
+const toDbCustomerStatus: Record<CustomerStatus, string> = {
+  Activo: 'active',
+  Atrasado: 'late',
+  Pagado: 'paid',
+  Inactivo: 'inactive',
+}
+
+const toDbFrequency: Record<Frequency, string> = {
+  Diario: 'daily',
+  Semanal: 'weekly',
+  Mensual: 'monthly',
+}
+
+const toDbPaymentStatus: Record<PaymentRecord['status'], string> = {
+  'A tiempo': 'on_time',
+  Tarde: 'late',
+  Cerrado: 'closed',
+}
+
+function parseDisplayNumber(value: string | null | undefined, fallback: number) {
+  const match = value?.match(/\d+/g)?.join('')
+  return match ? Number(match) : fallback
+}
+
+type CollectorLookup = {
+  byId: Map<string, string>
+  byName: Map<string, string>
+}
+
+type AppData = {
+  customers: Customer[]
+  loans: Loan[]
+  payments: PaymentRecord[]
+  expenses: Expense[]
+  liquidations: LiquidationRecord[]
+  monthlyLiquidation: MonthlyLiquidation
+  collectors: CollectorLookup
+}
+
+type DbRow = Record<string, unknown>
+
+function dbString(row: DbRow, key: string, fallback = '') {
+  const value = row[key]
+  return typeof value === 'string' ? value : fallback
+}
+
+function dbNumber(row: DbRow, key: string, fallback = 0) {
+  const value = row[key]
+  return typeof value === 'number' || typeof value === 'string' ? Number(value) : fallback
+}
+
+function mapLiquidation(row: DbRow): LiquidationRecord {
+  const month = dbString(row, 'liquidation_month').slice(0, 7)
+
+  return {
+    dbId: dbString(row, 'id'),
+    month,
+    monthLabel: getMonthLabel(month),
+    closeDateLabel: getCloseDateLabel(month),
+    totalCollected: dbNumber(row, 'total_collected'),
+    paymentCollected: dbNumber(row, 'total_collected') - dbNumber(row, 'late_fees_collected'),
+    principalRecovered: dbNumber(row, 'principal_recovered'),
+    profitCollected: dbNumber(row, 'profit_collected'),
+    lateFeesCollected: dbNumber(row, 'late_fees_collected'),
+    expensesTotal: dbNumber(row, 'operating_expenses'),
+    netProfit: dbNumber(row, 'net_profit'),
+    distributableProfit: Math.max(0, dbNumber(row, 'net_profit')),
+    investor: dbNumber(row, 'investor_share'),
+    partner: dbNumber(row, 'partner_share'),
+    deficit: Math.max(0, -dbNumber(row, 'net_profit')),
+    paymentCount: 0,
+    expenseCount: 0,
+    status: dbString(row, 'status') === 'confirmed' ? 'Confirmada' : 'Pendiente',
+    confirmedAt: dbString(row, 'confirmed_at', dbString(row, 'close_date')),
+  }
+}
+
+function mapMonthlyLiquidation(row: DbRow, month: string): MonthlyLiquidation {
+  return {
+    month,
+    monthLabel: getMonthLabel(month),
+    closeDateLabel: getCloseDateLabel(month),
+    totalCollected: dbNumber(row, 'total_collected'),
+    paymentCollected: dbNumber(row, 'payment_collected'),
+    principalRecovered: dbNumber(row, 'principal_recovered'),
+    profitCollected: dbNumber(row, 'profit_collected'),
+    lateFeesCollected: dbNumber(row, 'late_fees_collected'),
+    expensesTotal: dbNumber(row, 'operating_expenses'),
+    netProfit: dbNumber(row, 'net_profit'),
+    distributableProfit: dbNumber(row, 'distributable_profit'),
+    investor: dbNumber(row, 'investor_share'),
+    partner: dbNumber(row, 'partner_share'),
+    deficit: dbNumber(row, 'deficit'),
+    paymentCount: dbNumber(row, 'payment_count'),
+    expenseCount: dbNumber(row, 'expense_count'),
+    status: dbString(row, 'status') === 'confirmed' ? 'Confirmada' : 'Pendiente',
+  }
+}
+
+async function loadAppData(month = getMonthKey(formatDateInput(new Date()))): Promise<AppData> {
+  const [
+    collectorsResult,
+    customersResult,
+    loansResult,
+    paymentsResult,
+    expensesResult,
+    liquidationsResult,
+    monthlyLiquidationResult,
+  ] = await Promise.all([
+    supabase.from('collectors').select('*').order('full_name'),
+    supabase.from('customers').select('*').order('created_at'),
+    supabase.from('loans').select('*').order('created_at'),
+    supabase.from('payments').select('*').order('payment_date', { ascending: false }).order('created_at', { ascending: false }),
+    supabase.from('expenses').select('*').order('expense_date', { ascending: false }),
+    supabase.from('monthly_liquidations').select('*').order('liquidation_month', { ascending: false }),
+    supabase.rpc('calculate_monthly_liquidation', { p_month: `${month}-01` }),
+  ])
+
+  const error =
+    collectorsResult.error ??
+    customersResult.error ??
+    loansResult.error ??
+    paymentsResult.error ??
+    expensesResult.error ??
+    liquidationsResult.error ??
+    monthlyLiquidationResult.error
+
+  if (error) {
+    throw error
+  }
+
+  const collectorLookup: CollectorLookup = {
+    byId: new Map((collectorsResult.data ?? []).map((collector: DbRow) => [dbString(collector, 'id'), dbString(collector, 'full_name')])),
+    byName: new Map((collectorsResult.data ?? []).map((collector: DbRow) => [dbString(collector, 'full_name'), dbString(collector, 'id')])),
+  }
+
+  const customerDbToDisplay = new Map<string, number>()
+  const customers = (customersResult.data ?? []).map((customer: DbRow, index) => {
+    const customerId = dbString(customer, 'id')
+    const collectorId = dbString(customer, 'assigned_collector_id')
+    const displayId = parseDisplayNumber(dbString(customer, 'identification_number'), index + 1)
+    customerDbToDisplay.set(customerId, displayId)
+
+    return {
+      id: displayId,
+      dbId: customerId,
+      name: dbString(customer, 'full_name'),
+      phone: dbString(customer, 'phone'),
+      address: dbString(customer, 'address'),
+      cedula: dbString(customer, 'identification_number'),
+      collector: collectorLookup.byId.get(collectorId) ?? 'Sin cobrador',
+      collectorDbId: collectorId || undefined,
+      status: dbCustomerStatus[dbString(customer, 'status')] ?? 'Activo',
+      notes: dbString(customer, 'notes'),
+      references: dbString(customer, 'references_text'),
+    } satisfies Customer
+  })
+
+  const loanDbToDisplay = new Map<string, number>()
+  const loans = (loansResult.data ?? []).map((loan: DbRow, index) => {
+    const loanId = dbString(loan, 'id')
+    const customerId = dbString(loan, 'customer_id')
+    const collectorId = dbString(loan, 'collector_id')
+    const paymentAmount = dbNumber(loan, 'payment_amount')
+    const totalPayments = dbNumber(loan, 'total_payments')
+    const paidAmount = dbNumber(loan, 'paid_amount')
+    const displayId = parseDisplayNumber(dbString(loan, 'loan_number'), 1200 + index)
+    loanDbToDisplay.set(loanId, displayId)
+
+    return {
+      id: displayId,
+      dbId: loanId,
+      customerId: customerDbToDisplay.get(customerId) ?? 0,
+      customerDbId: customerId,
+      principal: dbNumber(loan, 'principal'),
+      paymentAmount,
+      frequency: dbFrequency[dbString(loan, 'frequency')] ?? 'Diario',
+      payments: totalPayments,
+      paidPayments: Math.min(totalPayments, Math.floor(paidAmount / paymentAmount)),
+      paidAmount,
+      startDate: dbString(loan, 'start_date'),
+      endDate: dbString(loan, 'end_date'),
+      collector: collectorLookup.byId.get(collectorId) ?? 'Sin cobrador',
+      collectorDbId: collectorId || undefined,
+      lateFee: dbNumber(loan, 'late_fee_percentage'),
+      graceDays: dbNumber(loan, 'grace_days'),
+      notes: dbString(loan, 'notes'),
+      status: dbLoanStatus[dbString(loan, 'status')] ?? 'Activo',
+    } satisfies Loan
+  })
+
+  const payments = (paymentsResult.data ?? []).map((payment: DbRow, index) => ({
+    id: index + 1,
+    dbId: dbString(payment, 'id'),
+    customerId: customerDbToDisplay.get(dbString(payment, 'customer_id')) ?? 0,
+    customerDbId: dbString(payment, 'customer_id'),
+    loanId: loanDbToDisplay.get(dbString(payment, 'loan_id')) ?? 0,
+    loanDbId: dbString(payment, 'loan_id'),
+    date: dbString(payment, 'payment_date'),
+    amount: dbNumber(payment, 'amount'),
+    paymentNumber: dbNumber(payment, 'payment_number'),
+    frequency: dbFrequency[dbString(payment, 'frequency')] ?? 'Diario',
+    collector: collectorLookup.byId.get(dbString(payment, 'collector_id')) ?? 'Sin cobrador',
+    collectorDbId: dbString(payment, 'collector_id') || undefined,
+    notes: dbString(payment, 'notes'),
+    status: dbPaymentStatus[dbString(payment, 'status')] ?? 'A tiempo',
+    lateFeeAmount: dbNumber(payment, 'late_fee_amount'),
+  } satisfies PaymentRecord))
+
+  const expenses = (expensesResult.data ?? []).map((expense: DbRow, index) => ({
+    id: index + 1,
+    dbId: dbString(expense, 'id'),
+    type: dbString(expense, 'expense_type'),
+    amount: dbNumber(expense, 'amount'),
+    date: dbString(expense, 'expense_date'),
+    description: dbString(expense, 'description'),
+    owner: dbString(expense, 'entered_by_name'),
+  } satisfies Expense))
+
+  return {
+    customers,
+    loans,
+    payments,
+    expenses,
+    liquidations: (liquidationsResult.data ?? []).map(mapLiquidation),
+    monthlyLiquidation: mapMonthlyLiquidation((monthlyLiquidationResult.data ?? [])[0] ?? {}, month),
+    collectors: collectorLookup,
+  }
+}
+
 function getCustomer(customers: Customer[], id: number) {
   return customers.find((customer) => customer.id === id) ?? null
 }
@@ -773,6 +1045,17 @@ function buildSchedule(loan: Loan, payments: PaymentRecord[], today: string): Sc
   return rows
 }
 
+void [
+  initialCustomers,
+  initialLoans,
+  initialPayments,
+  initialExpenses,
+  initialLiquidationRecords,
+  applyPaymentToLoan,
+  syncCustomerStatuses,
+  refreshLoanStatuses,
+]
+
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -780,20 +1063,84 @@ function App() {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null)
   const [showLoanForm, setShowLoanForm] = useState(false)
   const [showCustomerForm, setShowCustomerForm] = useState(false)
-  const [loanRecords, setLoanRecords] = useState<Loan[]>(() => refreshLoanStatuses(initialLoans, formatDateInput(new Date())))
-  const [customerRecords, setCustomerRecords] = useState<Customer[]>(() => {
-    const loans = refreshLoanStatuses(initialLoans, formatDateInput(new Date()))
-    return syncCustomerStatuses(initialCustomers, loans)
-  })
-  const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>(initialPayments)
+  const [loanRecords, setLoanRecords] = useState<Loan[]>([])
+  const [customerRecords, setCustomerRecords] = useState<Customer[]>([])
+  const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([])
   const [renewalPreview, setRenewalPreview] = useState<Loan | null>(null)
   const [loanCustomerId, setLoanCustomerId] = useState<number | undefined>()
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [paymentContext, setPaymentContext] = useState<PaymentContext | null>(null)
-  const [expenseRecords, setExpenseRecords] = useState<Expense[]>(initialExpenses)
-  const [liquidationRecords, setLiquidationRecords] = useState<LiquidationRecord[]>(initialLiquidationRecords)
+  const [expenseRecords, setExpenseRecords] = useState<Expense[]>([])
+  const [liquidationRecords, setLiquidationRecords] = useState<LiquidationRecord[]>([])
   const [liquidationMonth] = useState(getMonthKey(formatDateInput(new Date())))
+  const [monthlyLiquidation, setMonthlyLiquidation] = useState<MonthlyLiquidation>(() =>
+    calculateMonthlyLiquidation({
+      month: getMonthKey(formatDateInput(new Date())),
+      loans: [],
+      payments: [],
+      expenses: [],
+    }),
+  )
   const [searchTerm, setSearchTerm] = useState('')
+  const [collectorLookup, setCollectorLookup] = useState<CollectorLookup>({ byId: new Map(), byName: new Map() })
+  const [session, setSession] = useState<Session | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(false)
+  const [appError, setAppError] = useState<string | null>(null)
+  const [actionPending, setActionPending] = useState(false)
+
+  const refreshData = useCallback(async () => {
+    setDataLoading(true)
+    setAppError(null)
+
+    try {
+      const data = await loadAppData(liquidationMonth)
+      setCustomerRecords(data.customers)
+      setLoanRecords(data.loans)
+      setPaymentRecords(data.payments)
+      setExpenseRecords(data.expenses)
+      setLiquidationRecords(data.liquidations)
+      setMonthlyLiquidation(data.monthlyLiquidation)
+      setCollectorLookup(data.collectors)
+      setSelectedCustomer((customer) => data.customers.find((record) => record.dbId === customer?.dbId) ?? null)
+      setSelectedLoan((loan) => data.loans.find((record) => record.dbId === loan?.dbId) ?? null)
+    } catch (error) {
+      setAppError(error instanceof Error ? error.message : 'No se pudieron cargar los datos.')
+    } finally {
+      setDataLoading(false)
+    }
+  }, [liquidationMonth])
+
+  useEffect(() => {
+    let mounted = true
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return
+      setSession(data.session)
+      setAuthLoading(false)
+      if (data.session) {
+        void refreshData()
+      }
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession)
+      if (nextSession) {
+        void refreshData()
+      } else {
+        setCustomerRecords([])
+        setLoanRecords([])
+        setPaymentRecords([])
+        setExpenseRecords([])
+        setLiquidationRecords([])
+      }
+    })
+
+    return () => {
+      mounted = false
+      listener.subscription.unsubscribe()
+    }
+  }, [refreshData])
 
   const totals = useMemo(() => {
     const lentOut = loanRecords
@@ -832,17 +1179,6 @@ function App() {
       (loan.status === 'Activo' || loan.status === 'Atrasado') &&
       getLoanPaidAmount(loan) >= loan.paymentAmount * loan.payments * 0.5,
   )
-  const monthlyLiquidation = useMemo(() => {
-    const confirmed = liquidationRecords.find((record) => record.month === liquidationMonth)
-
-    return calculateMonthlyLiquidation({
-      month: liquidationMonth,
-      loans: loanRecords,
-      payments: paymentRecords,
-      expenses: expenseRecords,
-      confirmed,
-    })
-  }, [expenseRecords, liquidationMonth, liquidationRecords, loanRecords, paymentRecords])
 
   function openLoan(loan: Loan) {
     setSelectedLoan(loan)
@@ -854,49 +1190,78 @@ function App() {
     setRenewalPreview(loan)
   }
 
-  function createLoanFromForm(loan: Loan) {
-    setLoanRecords((records) => {
-      const nextRecords = [...records, loan]
-      setCustomerRecords((customers) => syncCustomerStatuses(customers, nextRecords))
-      setSelectedCustomer((customer) =>
-        customer?.id === loan.customerId ? { ...customer, status: getCustomerStatusFromLoans(nextRecords, customer) } : customer,
-      )
-      return nextRecords
-    })
-    setSelectedLoan(loan)
-    setSelectedCustomer(customerRecords.find((customer) => customer.id === loan.customerId) ?? null)
-    setRenewalPreview(null)
-    setShowLoanForm(false)
-    setLoanCustomerId(undefined)
-    setActiveView('Préstamos')
+  async function createLoanFromForm(loan: Loan) {
+    const customer = customerRecords.find((record) => record.id === loan.customerId)
+    if (!customer?.dbId) {
+      setAppError('Selecciona un cliente válido antes de asignar el préstamo.')
+      return
+    }
+
+    setActionPending(true)
+    setAppError(null)
+
+    try {
+      const { error } = await supabase.rpc('create_loan', {
+        p_customer_id: customer.dbId,
+        p_principal: loan.principal,
+        p_payment_amount: loan.paymentAmount,
+        p_frequency: toDbFrequency[loan.frequency],
+        p_total_payments: loan.payments,
+        p_start_date: loan.startDate,
+        p_late_fee_percentage: loan.lateFee,
+        p_grace_days: loan.graceDays,
+        p_collector_id: collectorLookup.byName.get(loan.collector) ?? loan.collectorDbId ?? customer.collectorDbId ?? null,
+        p_notes: loan.notes ?? null,
+      })
+
+      if (error) throw error
+
+      await refreshData()
+      setSelectedCustomer(customer)
+      setRenewalPreview(null)
+      setShowLoanForm(false)
+      setLoanCustomerId(undefined)
+      setActiveView('Préstamos')
+    } catch (error) {
+      setAppError(error instanceof Error ? error.message : 'No se pudo crear el préstamo.')
+    } finally {
+      setActionPending(false)
+    }
   }
 
-  function confirmRenewal(loan: Loan) {
-    const newLoan: Loan = {
-      ...loan,
-      id: getNextId(loanRecords),
-      paidPayments: 0,
-      paidAmount: 0,
-      startDate: formatDateInput(new Date()),
-      endDate: calculateEndDate(formatDateInput(new Date()), loan.payments, loan.frequency),
-      status: 'Activo',
+  async function confirmRenewal(loan: Loan) {
+    if (!loan.dbId) {
+      setAppError('No se encontró el préstamo en Supabase.')
+      return
     }
-    const renewedLoan = { ...loan, status: 'Renovado' as LoanStatus }
 
-    setLoanRecords((records) => {
-      const nextRecords = [
-        ...records.map((record) => (record.id === loan.id ? renewedLoan : record)),
-        newLoan,
-      ]
-      setCustomerRecords((customers) => syncCustomerStatuses(customers, nextRecords))
-      setSelectedCustomer((customer) =>
-        customer?.id === loan.customerId ? { ...customer, status: getCustomerStatusFromLoans(nextRecords, customer) } : customer,
-      )
-      return nextRecords
-    })
-    setSelectedLoan(newLoan)
-    setRenewalPreview(null)
-    setActiveView('Préstamos')
+    setActionPending(true)
+    setAppError(null)
+
+    try {
+      const { error } = await supabase.rpc('renew_loan', {
+        p_original_loan_id: loan.dbId,
+        p_new_principal: loan.principal,
+        p_start_date: formatDateInput(new Date()),
+        p_payment_amount: loan.paymentAmount,
+        p_frequency: toDbFrequency[loan.frequency],
+        p_total_payments: loan.payments,
+        p_late_fee_percentage: loan.lateFee,
+        p_grace_days: loan.graceDays,
+        p_collector_id: loan.collectorDbId ?? null,
+        p_notes: 'Renovación procesada desde Capital Express.',
+      })
+
+      if (error) throw error
+
+      await refreshData()
+      setRenewalPreview(null)
+      setActiveView('Préstamos')
+    } catch (error) {
+      setAppError(error instanceof Error ? error.message : 'No se pudo renovar el préstamo.')
+    } finally {
+      setActionPending(false)
+    }
   }
 
   function openPaymentContext(context: PaymentContext) {
@@ -904,24 +1269,47 @@ function App() {
     setActiveView('Cuotas')
   }
 
-  function registerPayment(payment: PaymentRecord) {
-    setPaymentRecords((records) => [payment, ...records])
-    setLoanRecords((records) => {
-      const applied = records.map((loan) =>
-        loan.id === payment.loanId ? applyPaymentToLoan(loan, payment.amount, payment.status) : loan,
-      )
-      const nextRecords = refreshLoanStatuses(applied, formatDateInput(new Date()))
-      setCustomerRecords((customers) => syncCustomerStatuses(customers, nextRecords))
-      setSelectedCustomer((customer) =>
-        customer?.id === payment.customerId
-          ? { ...customer, status: getCustomerStatusFromLoans(nextRecords, customer) }
-          : customer,
-      )
-      return nextRecords
-    })
-    setSelectedLoan((loan) =>
-      loan?.id === payment.loanId ? applyPaymentToLoan(loan, payment.amount, payment.status) : loan,
-    )
+  async function registerPayment(payment: PaymentRecord) {
+    const loan = loanRecords.find((record) => record.id === payment.loanId)
+    if (!loan?.dbId) {
+      setAppError('No se encontró el préstamo en Supabase.')
+      return
+    }
+
+    setActionPending(true)
+    setAppError(null)
+
+    try {
+      const { error } = await supabase.rpc('register_payment', {
+        p_loan_id: loan.dbId,
+        p_amount: payment.amount,
+        p_payment_date: payment.date,
+        p_collector_id: collectorLookup.byName.get(payment.collector) ?? payment.collectorDbId ?? loan.collectorDbId ?? null,
+        p_late_fee_amount: payment.lateFeeAmount,
+        p_notes: payment.notes || null,
+        p_status: toDbPaymentStatus[payment.status],
+      })
+
+      if (error) throw error
+
+      await refreshData()
+    } catch (error) {
+      setAppError(error instanceof Error ? error.message : 'No se pudo registrar el pago.')
+    } finally {
+      setActionPending(false)
+    }
+  }
+
+  if (authLoading) {
+    return <AppState title="Conectando" message="Validando la sesión de Supabase." />
+  }
+
+  if (!session) {
+    return <LoginScreen />
+  }
+
+  if (dataLoading && customerRecords.length === 0) {
+    return <AppState title="Cargando datos" message="Sincronizando clientes, préstamos, cuotas y liquidaciones desde Supabase." />
   }
 
   return (
@@ -1030,8 +1418,23 @@ function App() {
               <Plus size={18} />
               Nuevo préstamo
             </button>
+            <button className="secondary-button" onClick={() => supabase.auth.signOut()}>
+              Salir
+            </button>
           </div>
         </header>
+
+        {(dataLoading || actionPending || appError) && (
+          <div className={appError ? 'app-alert error' : 'app-alert'}>
+            <strong>{appError ? 'Atención' : actionPending ? 'Guardando cambios' : 'Cargando datos'}</strong>
+            <span>{appError ?? 'Sincronizando con Supabase.'}</span>
+            {appError && (
+              <button className="secondary-button" onClick={() => void refreshData()}>
+                Reintentar
+              </button>
+            )}
+          </div>
+        )}
 
         {activeView === 'Dashboard' && (
           <Dashboard
@@ -1060,18 +1463,34 @@ function App() {
               setEditingCustomer(customer)
               setShowCustomerForm(true)
             }}
-            onDeleteCustomer={(customer) => {
-              setCustomerRecords((records) => records.filter((record) => record.id !== customer.id))
-              setLoanRecords((records) => records.filter((loan) => loan.customerId !== customer.id))
-              if (selectedCustomer?.id === customer.id) {
-                setSelectedCustomer(null)
+            onDeleteCustomer={async (customer) => {
+              if (!customer.dbId) {
+                setAppError('No se encontró el cliente en Supabase.')
+                return
               }
-              if (selectedLoan?.customerId === customer.id) {
-                setSelectedLoan(null)
-                setRenewalPreview(null)
-              }
-              if (paymentContext?.customerId === customer.id) {
-                setPaymentContext(null)
+
+              setActionPending(true)
+              setAppError(null)
+
+              try {
+                const { error } = await supabase.from('customers').delete().eq('id', customer.dbId)
+                if (error) throw error
+
+                await refreshData()
+                if (selectedCustomer?.id === customer.id) {
+                  setSelectedCustomer(null)
+                }
+                if (selectedLoan?.customerId === customer.id) {
+                  setSelectedLoan(null)
+                  setRenewalPreview(null)
+                }
+                if (paymentContext?.customerId === customer.id) {
+                  setPaymentContext(null)
+                }
+              } catch (error) {
+                setAppError(error instanceof Error ? error.message : 'No se pudo eliminar el cliente.')
+              } finally {
+                setActionPending(false)
               }
             }}
             onGoPayments={(context) => openPaymentContext(context)}
@@ -1094,25 +1513,33 @@ function App() {
               setLoanCustomerId(undefined)
               setShowLoanForm(true)
             }}
-            onPayOffLoan={(loan) => {
-              const paidLoan = {
-                ...loan,
-                paidAmount: loan.paymentAmount * loan.payments,
-                paidPayments: loan.payments,
-                status: 'Pagado' as LoanStatus,
+            onPayOffLoan={async (loan) => {
+              if (!loan.dbId) {
+                setAppError('No se encontró el préstamo en Supabase.')
+                return
               }
-              setLoanRecords((records) => {
-                const nextRecords = records.map((record) => (record.id === loan.id ? paidLoan : record))
-                setCustomerRecords((customers) => syncCustomerStatuses(customers, nextRecords))
-                setSelectedCustomer((customer) =>
-                  customer?.id === loan.customerId
-                    ? { ...customer, status: getCustomerStatusFromLoans(nextRecords, customer) }
-                    : customer,
-                )
-                return nextRecords
-              })
-              setSelectedLoan(paidLoan)
-              setRenewalPreview(null)
+
+              setActionPending(true)
+              setAppError(null)
+
+              try {
+                const { error } = await supabase.rpc('payoff_loan', {
+                  p_loan_id: loan.dbId,
+                  p_payment_date: formatDateInput(new Date()),
+                  p_collector_id: loan.collectorDbId ?? null,
+                  p_late_fee_amount: 0,
+                  p_notes: 'Saldo completo registrado desde Capital Express.',
+                })
+
+                if (error) throw error
+
+                await refreshData()
+                setRenewalPreview(null)
+              } catch (error) {
+                setAppError(error instanceof Error ? error.message : 'No se pudo saldar el préstamo.')
+              } finally {
+                setActionPending(false)
+              }
             }}
             onOpenCustomer={(customer) => {
               setSelectedCustomer(customer)
@@ -1141,25 +1568,93 @@ function App() {
           <GastosView
             expenses={expenseRecords}
             nextExpenseId={getNextId(expenseRecords)}
-            onAddExpense={(expense) => setExpenseRecords((records) => [...records, expense])}
-            onEditExpense={(expense) => setExpenseRecords((records) => records.map((e) => e.id === expense.id ? expense : e))}
-            onDeleteExpense={(id) => setExpenseRecords((records) => records.filter((e) => e.id !== id))}
+            onAddExpense={async (expense) => {
+              setActionPending(true)
+              setAppError(null)
+
+              try {
+                const { error } = await supabase.from('expenses').insert({
+                  expense_type: expense.type,
+                  amount: expense.amount,
+                  expense_date: expense.date,
+                  description: expense.description || null,
+                  entered_by_name: expense.owner,
+                })
+                if (error) throw error
+                await refreshData()
+              } catch (error) {
+                setAppError(error instanceof Error ? error.message : 'No se pudo registrar el gasto.')
+              } finally {
+                setActionPending(false)
+              }
+            }}
+            onEditExpense={async (expense) => {
+              if (!expense.dbId) {
+                setAppError('No se encontró el gasto en Supabase.')
+                return
+              }
+
+              setActionPending(true)
+              setAppError(null)
+
+              try {
+                const { error } = await supabase.from('expenses').update({
+                  expense_type: expense.type,
+                  amount: expense.amount,
+                  expense_date: expense.date,
+                  description: expense.description || null,
+                  entered_by_name: expense.owner,
+                }).eq('id', expense.dbId)
+                if (error) throw error
+                await refreshData()
+              } catch (error) {
+                setAppError(error instanceof Error ? error.message : 'No se pudo actualizar el gasto.')
+              } finally {
+                setActionPending(false)
+              }
+            }}
+            onDeleteExpense={async (id) => {
+              const expense = expenseRecords.find((record) => record.id === id)
+              if (!expense?.dbId) {
+                setAppError('No se encontró el gasto en Supabase.')
+                return
+              }
+
+              setActionPending(true)
+              setAppError(null)
+
+              try {
+                const { error } = await supabase.from('expenses').delete().eq('id', expense.dbId)
+                if (error) throw error
+                await refreshData()
+              } catch (error) {
+                setAppError(error instanceof Error ? error.message : 'No se pudo eliminar el gasto.')
+              } finally {
+                setActionPending(false)
+              }
+            }}
           />
         )}
         {activeView === 'Liquidación' && (
           <LiquidationView
             liquidation={monthlyLiquidation}
             history={liquidationRecords}
-            onConfirm={(liquidation) => {
-              const record: LiquidationRecord = {
-                ...liquidation,
-                status: 'Confirmada',
-                confirmedAt: formatDateInput(new Date()),
+            onConfirm={async (liquidation) => {
+              setActionPending(true)
+              setAppError(null)
+
+              try {
+                const { error } = await supabase.rpc('confirm_monthly_liquidation', {
+                  p_month: `${liquidation.month}-01`,
+                  p_notes: 'Confirmado manualmente desde Capital Express.',
+                })
+                if (error) throw error
+                await refreshData()
+              } catch (error) {
+                setAppError(error instanceof Error ? error.message : 'No se pudo confirmar la liquidación.')
+              } finally {
+                setActionPending(false)
               }
-              setLiquidationRecords((records) => [
-                record,
-                ...records.filter((item) => item.month !== liquidation.month),
-              ])
             }}
           />
         )}
@@ -1186,21 +1681,134 @@ function App() {
             setShowCustomerForm(false)
             setEditingCustomer(null)
           }}
-          onCreate={(customer) => {
-            setCustomerRecords((records) => [...records, customer])
-            setSelectedCustomer(customer)
-            setShowCustomerForm(false)
+          onCreate={async (customer) => {
+            setActionPending(true)
+            setAppError(null)
+
+            try {
+              const { error } = await supabase.from('customers').insert({
+                full_name: customer.name,
+                phone: customer.phone,
+                address: customer.address,
+                identification_number: customer.cedula || null,
+                notes: customer.notes || null,
+                references_text: customer.references || null,
+                assigned_collector_id: collectorLookup.byName.get(customer.collector) ?? null,
+                status: toDbCustomerStatus[customer.status],
+              })
+              if (error) throw error
+              await refreshData()
+              setShowCustomerForm(false)
+            } catch (error) {
+              setAppError(error instanceof Error ? error.message : 'No se pudo crear el cliente.')
+            } finally {
+              setActionPending(false)
+            }
           }}
-          onUpdate={(customer) => {
-            setCustomerRecords((records) => records.map((record) => (record.id === customer.id ? customer : record)))
-            setSelectedCustomer(customer)
-            setEditingCustomer(null)
-            setShowCustomerForm(false)
+          onUpdate={async (customer) => {
+            if (!customer.dbId) {
+              setAppError('No se encontró el cliente en Supabase.')
+              return
+            }
+
+            setActionPending(true)
+            setAppError(null)
+
+            try {
+              const { error } = await supabase.from('customers').update({
+                full_name: customer.name,
+                phone: customer.phone,
+                address: customer.address,
+                identification_number: customer.cedula || null,
+                notes: customer.notes || null,
+                references_text: customer.references || null,
+                assigned_collector_id: collectorLookup.byName.get(customer.collector) ?? null,
+                status: toDbCustomerStatus[customer.status],
+              }).eq('id', customer.dbId)
+              if (error) throw error
+              await refreshData()
+              setEditingCustomer(null)
+              setShowCustomerForm(false)
+            } catch (error) {
+              setAppError(error instanceof Error ? error.message : 'No se pudo actualizar el cliente.')
+            } finally {
+              setActionPending(false)
+            }
           }}
           nextId={getNextId(customerRecords)}
         />
       )}
     </div>
+  )
+}
+
+function AppState({ title, message }: { title: string; message: string }) {
+  return (
+    <main className="standalone-state">
+      <div className="brand-mark">CE</div>
+      <h1>{title}</h1>
+      <p>{message}</p>
+    </main>
+  )
+}
+
+function LoginScreen() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (signInError) {
+      setError(signInError.message)
+    }
+
+    setLoading(false)
+  }
+
+  return (
+    <main className="login-page">
+      <form className="login-card" onSubmit={handleSubmit}>
+        <div className="brand">
+          <div className="brand-mark">CE</div>
+          <div>
+            <strong>Capital Express</strong>
+            <span>Puerto Plata</span>
+          </div>
+        </div>
+        <div>
+          <p className="eyebrow">Acceso administrador</p>
+          <h1>Iniciar sesión</h1>
+        </div>
+        {error && (
+          <div className="app-alert error">
+            <strong>Atención</strong>
+            <span>{error}</span>
+          </div>
+        )}
+        <label>
+          Correo
+          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+        </label>
+        <label>
+          Contraseña
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+        </label>
+        <button className="primary-button" type="submit" disabled={loading}>
+          <ShieldCheck size={18} />
+          {loading ? 'Validando' : 'Entrar'}
+        </button>
+      </form>
+    </main>
   )
 }
 
@@ -1235,6 +1843,7 @@ function Dashboard({
           <span className="rule-chip">Regla 50% de vida del préstamo</span>
         </div>
         <div className="renewal-grid">
+          {eligibleRenewals.length === 0 && <EmptyState message="No hay clientes elegibles para renovación en este momento." />}
           {eligibleRenewals.map((loan) => {
             const customer = getCustomer(customers, loan.customerId)
             if (!customer) {
@@ -1938,11 +2547,13 @@ function CustomerForm({
     const form = new FormData(event.currentTarget)
     const customer: Customer = {
       id: initialCustomer?.id ?? nextId,
+      dbId: initialCustomer?.dbId,
       name: String(form.get('name') || ''),
       phone: String(form.get('phone') || ''),
       address: String(form.get('address') || ''),
       cedula: String(form.get('cedula') || ''),
       collector: String(form.get('collector') || ''),
+      collectorDbId: initialCustomer?.collectorDbId,
       status: String(form.get('status') || 'Activo') as CustomerStatus,
       references: String(form.get('references') || ''),
       notes: String(form.get('notes') || ''),
@@ -2062,6 +2673,7 @@ function LoanForm({
     const loan: Loan = {
       id: nextId,
       customerId: selectedCustomerId,
+      customerDbId: initialCustomer?.dbId,
       principal: Number(form.get('principal') || 0),
       paymentAmount: Number(form.get('paymentAmount') || 0),
       frequency,
@@ -2071,6 +2683,7 @@ function LoanForm({
       startDate,
       endDate: calculateEndDate(startDate, payments, frequency),
       collector: selectedCollector,
+      collectorDbId: initialCustomer?.collectorDbId,
       lateFee: Number(form.get('lateFee') || 0),
       graceDays: Number(form.get('graceDays') || 0),
       notes: String(form.get('notes') || ''),
@@ -2420,11 +3033,14 @@ function PaymentForm({
       id: nextId,
       customerId: loan.customerId,
       loanId: loan.id,
+      loanDbId: loan.dbId,
+      customerDbId: loan.customerDbId,
       date: String(form.get('date') || formatDateInput(new Date())),
       amount: effectiveAmount,
       paymentNumber: Math.min(loan.payments, Math.floor(paidAfterPayment / loan.paymentAmount)),
       frequency: loan.frequency,
       collector: String(form.get('collector') || loan.collector),
+      collectorDbId: loan.collectorDbId,
       notes: String(form.get('notes') || ''),
       status,
       lateFeeAmount: safeLateFeeAmount,
@@ -2941,6 +3557,9 @@ function Info({ label, value }: { label: string; value: string }) {
   )
 }
 
+function EmptyState({ message }: { message: string }) {
+  return <div className="empty-state">{message}</div>
+}
 
 function StatusBadge({ status }: { status: string }) {
   return <span className={`status ${status.toLowerCase().replace(/\s/g, '-')}`}>{status}</span>
