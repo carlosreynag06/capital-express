@@ -400,15 +400,16 @@ function App() {
   const [showLoanForm, setShowLoanForm] = useState(false)
   const [showCustomerForm, setShowCustomerForm] = useState(false)
   const [customerRecords, setCustomerRecords] = useState<Customer[]>(initialCustomers)
+  const [loanRecords, setLoanRecords] = useState<Loan[]>(initialLoans)
   const [renewalPreview, setRenewalPreview] = useState<Loan | null>(null)
 
   const totals = useMemo(() => {
-    const lentOut = initialLoans
+    const lentOut = loanRecords
       .filter((loan) => loan.status === 'Activo' || loan.status === 'Atrasado')
       .reduce((sum, loan) => sum + loan.principal, 0)
-    const expected = initialLoans.reduce((sum, loan) => sum + loan.paymentAmount * loan.payments, 0)
-    const collected = initialLoans.reduce((sum, loan) => sum + loan.paymentAmount * loan.paidPayments, 0)
-    const principalRecovered = Math.min(collected, initialLoans.reduce((sum, loan) => sum + loan.principal, 0))
+    const expected = loanRecords.reduce((sum, loan) => sum + loan.paymentAmount * loan.payments, 0)
+    const collected = loanRecords.reduce((sum, loan) => sum + loan.paymentAmount * loan.paidPayments, 0)
+    const principalRecovered = Math.min(collected, loanRecords.reduce((sum, loan) => sum + loan.principal, 0))
     const expensesTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0)
     const grossProfit = Math.max(0, collected - principalRecovered)
     const netProfit = grossProfit - expensesTotal
@@ -425,10 +426,10 @@ function App() {
       investor: netProfit * 0.6,
       partner: netProfit * 0.4,
     }
-  }, [])
+  }, [loanRecords])
 
-  const activeLoans = initialLoans.filter((loan) => loan.status === 'Activo' || loan.status === 'Atrasado')
-  const eligibleRenewals = initialLoans.filter((loan) => loan.paidPayments >= Math.ceil(loan.payments * 0.5))
+  const activeLoans = loanRecords.filter((loan) => loan.status === 'Activo' || loan.status === 'Atrasado')
+  const eligibleRenewals = loanRecords.filter((loan) => loan.paidPayments >= Math.ceil(loan.payments * 0.5))
 
   function openLoan(loan: Loan) {
     setSelectedLoan(loan)
@@ -515,6 +516,7 @@ function App() {
         {activeView === 'Clientes' && (
           <CustomersView
             customers={customerRecords}
+            loans={loanRecords}
             selectedCustomer={selectedCustomer}
             onSelectCustomer={setSelectedCustomer}
             onCloseCustomer={() => setSelectedCustomer(null)}
@@ -535,11 +537,18 @@ function App() {
             }}
             onRenew={calculateRenewal}
             onNewLoan={() => setShowLoanForm(true)}
+            onPayOffLoan={(loan) => {
+              const paidLoan = { ...loan, paidPayments: loan.payments, status: 'Pagado' as LoanStatus }
+              setLoanRecords((records) => records.map((record) => (record.id === loan.id ? paidLoan : record)))
+              setSelectedLoan(paidLoan)
+              setRenewalPreview(null)
+            }}
             onOpenCustomer={(customer) => {
               setSelectedCustomer(customer)
               setActiveView('Clientes')
             }}
             onGoPayments={() => setActiveView('Cuotas')}
+            loans={loanRecords}
           />
         )}
         {activeView === 'Cuotas' && <PaymentsView />}
@@ -677,6 +686,7 @@ function Dashboard({
 
 function CustomersView({
   customers,
+  loans,
   selectedCustomer,
   onSelectCustomer,
   onCloseCustomer,
@@ -686,6 +696,7 @@ function CustomersView({
   onOpenLoan,
 }: {
   customers: Customer[]
+  loans: Loan[]
   selectedCustomer: Customer | null
   onSelectCustomer: (customer: Customer) => void
   onCloseCustomer: () => void
@@ -695,7 +706,7 @@ function CustomersView({
   onOpenLoan: (loan: Loan) => void
 }) {
   const [openActions, setOpenActions] = useState<number | null>(null)
-  const customerLoans = initialLoans.filter((loan) => loan.customerId === selectedCustomer?.id)
+  const customerLoans = loans.filter((loan) => loan.customerId === selectedCustomer?.id)
 
   return (
     <section className="customers-layout">
@@ -725,7 +736,11 @@ function CustomersView({
             </thead>
             <tbody>
               {customers.map((customer) => {
-                const loans = initialLoans.filter((loan) => loan.customerId === customer.id)
+                const customerActiveLoans = loans.filter(
+                  (loan) =>
+                    loan.customerId === customer.id &&
+                    (loan.status === 'Activo' || loan.status === 'Atrasado'),
+                )
 
                 return (
                   <tr className="interactive-row" key={customer.id} onClick={() => onSelectCustomer(customer)}>
@@ -742,7 +757,7 @@ function CustomersView({
                     <td>{customer.address}</td>
                     <td>{customer.collector}</td>
                     <td><StatusBadge status={customer.status} /></td>
-                    <td>{loans.length} activos</td>
+                    <td>{customerActiveLoans.length} activos</td>
                     <td>
                       <QuickActions
                         isOpen={openActions === customer.id}
@@ -781,12 +796,12 @@ function CustomersView({
                               setOpenActions(null)
                             },
                           },
-                          ...(loans[0]
+                          ...(customerActiveLoans[0]
                             ? [
                                 {
                                   label: 'Abrir préstamo activo',
                                   onSelect: () => {
-                                    onOpenLoan(loans[0])
+                                    onOpenLoan(customerActiveLoans[0])
                                     setOpenActions(null)
                                   },
                                 },
@@ -870,21 +885,25 @@ function CustomersView({
 }
 
 function LoansView({
+  loans,
   selectedLoan,
   renewalPreview,
   onOpenLoan,
   onCloseLoan,
   onRenew,
   onNewLoan,
+  onPayOffLoan,
   onOpenCustomer,
   onGoPayments,
 }: {
+  loans: Loan[]
   selectedLoan: Loan | null
   renewalPreview: Loan | null
   onOpenLoan: (loan: Loan) => void
   onCloseLoan: () => void
   onRenew: (loan: Loan) => void
   onNewLoan: () => void
+  onPayOffLoan: (loan: Loan) => void
   onOpenCustomer: (customer: Customer) => void
   onGoPayments: () => void
 }) {
@@ -916,7 +935,7 @@ function LoansView({
               </tr>
             </thead>
             <tbody>
-              {initialLoans.map((loan) => {
+              {loans.map((loan) => {
                 const customer = getCustomer(loan.customerId)
 
                 return (
@@ -936,9 +955,9 @@ function LoansView({
                         }}
                         actions={[
                           {
-                            label: 'Abrir detalle',
+                            label: 'Saldar préstamo',
                             onSelect: () => {
-                              onOpenLoan(loan)
+                              onPayOffLoan(loan)
                               setOpenActions(null)
                             },
                           },

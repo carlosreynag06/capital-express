@@ -621,10 +621,18 @@ td {
   background: #f3f6fb;
 }
 
+.interactive-row:hover .quick-actions .icon-button,
+.quick-actions .icon-button[aria-expanded='true'] {
+  color: #111827;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #d8dee8;
+}
+
 .quick-actions {
   position: relative;
   display: inline-flex;
   justify-content: flex-end;
+  z-index: 2;
 }
 
 .quick-menu {
