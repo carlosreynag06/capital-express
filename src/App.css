@@ -767,6 +767,10 @@ td {
   box-shadow: 0 12px 28px rgba(29, 78, 216, 0.22);
 }
 
+.renew-button.compact {
+  margin-top: 14px;
+}
+
 .renewal-box {
   margin-top: 14px;
   padding: 15px;
@@ -890,6 +894,31 @@ textarea {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 18px;
+}
+
+.context-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 13px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.context-strip span,
+.context-strip small {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.context-strip strong {
+  display: block;
+  margin-top: 3px;
+  color: #111827;
 }
 
 .scrim {

@@ -67,6 +67,12 @@ type Loan = {
   status: LoanStatus
 }
 
+type PaymentContext = {
+  customerId: number
+  loanId?: number
+  source: 'cliente' | 'prestamo'
+}
+
 type DashboardTotals = {
   capital: number
   lentOut: number
@@ -376,8 +382,8 @@ const formatMoney = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value)
 
-function getCustomer(id: number) {
-  return initialCustomers.find((customer) => customer.id === id) ?? initialCustomers[0]
+function getCustomer(customers: Customer[], id: number) {
+  return customers.find((customer) => customer.id === id) ?? customers[0]
 }
 
 function getRenewalMath(loan: Loan, newPrincipal = loan.principal) {
@@ -395,6 +401,39 @@ function getRenewalMath(loan: Loan, newPrincipal = loan.principal) {
   }
 }
 
+function getNextId(records: Array<{ id: number }>) {
+  return Math.max(0, ...records.map((record) => record.id)) + 1
+}
+
+function formatDateInput(date: Date) {
+  return date.toISOString().slice(0, 10)
+}
+
+function calculateEndDate(startDate: string, payments: number, frequency: Frequency) {
+  const date = new Date(`${startDate}T12:00:00`)
+  let counted = 0
+
+  while (counted < payments) {
+    if (frequency === 'Diario') {
+      if (date.getDay() !== 0) {
+        counted += 1
+      }
+
+      if (counted < payments) {
+        date.setDate(date.getDate() + 1)
+      }
+    } else {
+      counted += 1
+
+      if (counted < payments) {
+        date.setDate(date.getDate() + (frequency === 'Semanal' ? 7 : 30))
+      }
+    }
+  }
+
+  return formatDateInput(date)
+}
+
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -405,6 +444,9 @@ function App() {
   const [customerRecords, setCustomerRecords] = useState<Customer[]>(initialCustomers)
   const [loanRecords, setLoanRecords] = useState<Loan[]>(initialLoans)
   const [renewalPreview, setRenewalPreview] = useState<Loan | null>(null)
+  const [loanCustomerId, setLoanCustomerId] = useState<number | undefined>()
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [paymentContext, setPaymentContext] = useState<PaymentContext | null>(null)
 
   const totals = useMemo(() => {
     const lentOut = loanRecords
@@ -432,7 +474,11 @@ function App() {
   }, [loanRecords])
 
   const activeLoans = loanRecords.filter((loan) => loan.status === 'Activo' || loan.status === 'Atrasado')
-  const eligibleRenewals = loanRecords.filter((loan) => loan.paidPayments >= Math.ceil(loan.payments * 0.5))
+  const eligibleRenewals = loanRecords.filter(
+    (loan) =>
+      (loan.status === 'Activo' || loan.status === 'Atrasado') &&
+      loan.paidPayments >= Math.ceil(loan.payments * 0.5),
+  )
 
   function openLoan(loan: Loan) {
     setSelectedLoan(loan)
@@ -442,6 +488,41 @@ function App() {
 
   function calculateRenewal(loan: Loan) {
     setRenewalPreview(loan)
+  }
+
+  function createLoanFromForm(loan: Loan) {
+    setLoanRecords((records) => [...records, loan])
+    setSelectedLoan(loan)
+    setSelectedCustomer(customerRecords.find((customer) => customer.id === loan.customerId) ?? null)
+    setRenewalPreview(null)
+    setShowLoanForm(false)
+    setLoanCustomerId(undefined)
+    setActiveView('Préstamos')
+  }
+
+  function confirmRenewal(loan: Loan) {
+    const newLoan: Loan = {
+      ...loan,
+      id: getNextId(loanRecords),
+      paidPayments: 0,
+      startDate: formatDateInput(new Date()),
+      endDate: calculateEndDate(formatDateInput(new Date()), loan.payments, loan.frequency),
+      status: 'Activo',
+    }
+    const renewedLoan = { ...loan, status: 'Renovado' as LoanStatus }
+
+    setLoanRecords((records) => [
+      ...records.map((record) => (record.id === loan.id ? renewedLoan : record)),
+      newLoan,
+    ])
+    setSelectedLoan(newLoan)
+    setRenewalPreview(null)
+    setActiveView('Préstamos')
+  }
+
+  function openPaymentContext(context: PaymentContext) {
+    setPaymentContext(context)
+    setActiveView('Cuotas')
   }
 
   return (
@@ -501,7 +582,13 @@ function App() {
               <Search size={17} />
               <input placeholder="Buscar cliente, préstamo o cuota" />
             </div>
-            <button className="primary-button" onClick={() => setShowLoanForm(true)}>
+            <button
+              className="primary-button"
+              onClick={() => {
+                setLoanCustomerId(undefined)
+                setShowLoanForm(true)
+              }}
+            >
               <Plus size={18} />
               Nuevo préstamo
             </button>
@@ -513,6 +600,7 @@ function App() {
             totals={totals}
             activeLoans={activeLoans}
             eligibleRenewals={eligibleRenewals}
+            customers={customerRecords}
             onOpenLoan={openLoan}
           />
         )}
@@ -524,8 +612,26 @@ function App() {
             onSelectCustomer={setSelectedCustomer}
             onCloseCustomer={() => setSelectedCustomer(null)}
             onNewCustomer={() => setShowCustomerForm(true)}
-            onNewLoan={() => setShowLoanForm(true)}
-            onGoPayments={() => setActiveView('Cuotas')}
+            onNewLoan={(customer) => {
+              setLoanCustomerId(customer.id)
+              setShowLoanForm(true)
+            }}
+            onEditCustomer={(customer) => {
+              setEditingCustomer(customer)
+              setShowCustomerForm(true)
+            }}
+            onDeleteCustomer={(customer) => {
+              setCustomerRecords((records) => records.filter((record) => record.id !== customer.id))
+              setLoanRecords((records) => records.filter((loan) => loan.customerId !== customer.id))
+              if (selectedCustomer?.id === customer.id) {
+                setSelectedCustomer(null)
+              }
+              if (selectedLoan?.customerId === customer.id) {
+                setSelectedLoan(null)
+                setRenewalPreview(null)
+              }
+            }}
+            onGoPayments={(context) => openPaymentContext(context)}
             onOpenLoan={openLoan}
           />
         )}
@@ -539,7 +645,11 @@ function App() {
               setRenewalPreview(null)
             }}
             onRenew={calculateRenewal}
-            onNewLoan={() => setShowLoanForm(true)}
+            onConfirmRenewal={confirmRenewal}
+            onNewLoan={() => {
+              setLoanCustomerId(undefined)
+              setShowLoanForm(true)
+            }}
             onPayOffLoan={(loan) => {
               const paidLoan = { ...loan, paidPayments: loan.payments, status: 'Pagado' as LoanStatus }
               setLoanRecords((records) => records.map((record) => (record.id === loan.id ? paidLoan : record)))
@@ -550,26 +660,54 @@ function App() {
               setSelectedCustomer(customer)
               setActiveView('Clientes')
             }}
-            onGoPayments={() => setActiveView('Cuotas')}
+            onGoPayments={(context) => openPaymentContext(context)}
             loans={loanRecords}
+            customers={customerRecords}
           />
         )}
-        {activeView === 'Cuotas' && <PaymentsView />}
+        {activeView === 'Cuotas' && (
+          <PaymentsView
+            context={paymentContext}
+            customer={paymentContext ? getCustomer(customerRecords, paymentContext.customerId) : null}
+            loan={paymentContext?.loanId ? loanRecords.find((loan) => loan.id === paymentContext.loanId) ?? null : null}
+          />
+        )}
         {activeView === 'Liquidación' && <LiquidationView totals={totals} />}
         {activeView === 'Reportes' && <ReportsView />}
       </main>
 
       {menuOpen && <button className="scrim" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú" />}
-      {showLoanForm && <LoanForm customers={customerRecords} onClose={() => setShowLoanForm(false)} />}
+      {showLoanForm && (
+        <LoanForm
+          customers={customerRecords}
+          defaultCustomerId={loanCustomerId}
+          nextId={getNextId(loanRecords)}
+          onClose={() => {
+            setShowLoanForm(false)
+            setLoanCustomerId(undefined)
+          }}
+          onCreate={createLoanFromForm}
+        />
+      )}
       {showCustomerForm && (
         <CustomerForm
-          onClose={() => setShowCustomerForm(false)}
+          initialCustomer={editingCustomer}
+          onClose={() => {
+            setShowCustomerForm(false)
+            setEditingCustomer(null)
+          }}
           onCreate={(customer) => {
             setCustomerRecords((records) => [...records, customer])
             setSelectedCustomer(customer)
             setShowCustomerForm(false)
           }}
-          nextId={customerRecords.length + 1}
+          onUpdate={(customer) => {
+            setCustomerRecords((records) => records.map((record) => (record.id === customer.id ? customer : record)))
+            setSelectedCustomer(customer)
+            setEditingCustomer(null)
+            setShowCustomerForm(false)
+          }}
+          nextId={getNextId(customerRecords)}
         />
       )}
     </div>
@@ -580,11 +718,13 @@ function Dashboard({
   totals,
   activeLoans,
   eligibleRenewals,
+  customers,
   onOpenLoan,
 }: {
   totals: DashboardTotals
   activeLoans: Loan[]
   eligibleRenewals: Loan[]
+  customers: Customer[]
   onOpenLoan: (loan: Loan) => void
 }) {
   return (
@@ -606,7 +746,7 @@ function Dashboard({
         </div>
         <div className="renewal-grid">
           {eligibleRenewals.map((loan) => {
-            const customer = getCustomer(loan.customerId)
+            const customer = getCustomer(customers, loan.customerId)
             const progress = Math.round((loan.paidPayments / loan.payments) * 100)
             const renewal = getRenewalMath(loan)
 
@@ -695,6 +835,8 @@ function CustomersView({
   onCloseCustomer,
   onNewCustomer,
   onNewLoan,
+  onEditCustomer,
+  onDeleteCustomer,
   onGoPayments,
   onOpenLoan,
 }: {
@@ -704,12 +846,18 @@ function CustomersView({
   onSelectCustomer: (customer: Customer) => void
   onCloseCustomer: () => void
   onNewCustomer: () => void
-  onNewLoan: () => void
-  onGoPayments: () => void
+  onNewLoan: (customer: Customer) => void
+  onEditCustomer: (customer: Customer) => void
+  onDeleteCustomer: (customer: Customer) => void
+  onGoPayments: (context: PaymentContext) => void
   onOpenLoan: (loan: Loan) => void
 }) {
   const [openActions, setOpenActions] = useState<number | null>(null)
-  const customerLoans = loans.filter((loan) => loan.customerId === selectedCustomer?.id)
+  const customerLoans = loans.filter(
+    (loan) =>
+      loan.customerId === selectedCustomer?.id &&
+      (loan.status === 'Activo' || loan.status === 'Atrasado'),
+  )
 
   return (
     <section className="customers-layout">
@@ -776,7 +924,7 @@ function CustomersView({
                             icon: HandCoins,
                             onSelect: () => {
                               onSelectCustomer(customer)
-                              onNewLoan()
+                              onNewLoan(customer)
                               setOpenActions(null)
                             },
                           },
@@ -784,7 +932,7 @@ function CustomersView({
                             label: 'Editar cliente',
                             icon: Pencil,
                             onSelect: () => {
-                              onSelectCustomer(customer)
+                              onEditCustomer(customer)
                               setOpenActions(null)
                             },
                           },
@@ -792,7 +940,7 @@ function CustomersView({
                             label: 'Registrar pago',
                             icon: ReceiptText,
                             onSelect: () => {
-                              onGoPayments()
+                              onGoPayments({ customerId: customer.id, loanId: customerActiveLoans[0]?.id, source: 'cliente' })
                               setOpenActions(null)
                             },
                           },
@@ -801,6 +949,7 @@ function CustomersView({
                             icon: Trash2,
                             tone: 'danger',
                             onSelect: () => {
+                              onDeleteCustomer(customer)
                               setOpenActions(null)
                             },
                           },
@@ -895,26 +1044,30 @@ function CustomersView({
 
 function LoansView({
   loans,
+  customers,
   selectedLoan,
   renewalPreview,
   onOpenLoan,
   onCloseLoan,
   onRenew,
+  onConfirmRenewal,
   onNewLoan,
   onPayOffLoan,
   onOpenCustomer,
   onGoPayments,
 }: {
   loans: Loan[]
+  customers: Customer[]
   selectedLoan: Loan | null
   renewalPreview: Loan | null
   onOpenLoan: (loan: Loan) => void
   onCloseLoan: () => void
   onRenew: (loan: Loan) => void
+  onConfirmRenewal: (loan: Loan) => void
   onNewLoan: () => void
   onPayOffLoan: (loan: Loan) => void
   onOpenCustomer: (customer: Customer) => void
-  onGoPayments: () => void
+  onGoPayments: (context: PaymentContext) => void
 }) {
   const [openActions, setOpenActions] = useState<number | null>(null)
 
@@ -945,7 +1098,7 @@ function LoansView({
             </thead>
             <tbody>
               {loans.map((loan) => {
-                const customer = getCustomer(loan.customerId)
+                const customer = getCustomer(customers, loan.customerId)
 
                 return (
                   <tr className="interactive-row" key={loan.id} onClick={() => onOpenLoan(loan)}>
@@ -993,7 +1146,7 @@ function LoansView({
                             label: 'Registrar pago',
                             icon: ReceiptText,
                             onSelect: () => {
-                              onGoPayments()
+                              onGoPayments({ customerId: customer.id, loanId: loan.id, source: 'prestamo' })
                               setOpenActions(null)
                             },
                           },
@@ -1020,9 +1173,11 @@ function LoansView({
         <DetailDrawer onClose={onCloseLoan} label="Cerrar detalle del préstamo">
           <LoanDetail
             loan={selectedLoan}
+            customer={getCustomer(customers, selectedLoan.customerId)}
             renewalPreview={renewalPreview}
             onClose={onCloseLoan}
             onRenew={() => onRenew(selectedLoan)}
+            onConfirmRenewal={() => onConfirmRenewal(selectedLoan)}
           />
         </DetailDrawer>
       )}
@@ -1092,14 +1247,18 @@ function DetailDrawer({
 
 function LoanDetail({
   loan,
+  customer,
   renewalPreview,
   onClose,
   onRenew,
+  onConfirmRenewal,
 }: {
   loan: Loan
+  customer: Customer
   renewalPreview: Loan | null
   onClose: () => void
   onRenew: () => void
+  onConfirmRenewal: () => void
 }) {
   const renewal = getRenewalMath(loan)
   const progress = Math.round((loan.paidPayments / loan.payments) * 100)
@@ -1109,7 +1268,7 @@ function LoanDetail({
       <div className="sheet-header">
         <div>
           <p className="eyebrow">Préstamo #{loan.id}</p>
-          <h2>{getCustomer(loan.customerId).name}</h2>
+          <h2>{customer.name}</h2>
         </div>
         <div className="sheet-actions">
           <StatusBadge status={loan.status} />
@@ -1142,7 +1301,7 @@ function LoanDetail({
 
       <button className="renew-button" onClick={onRenew}>
         <RefreshCcw size={18} />
-        Renovar Préstamo
+        Calcular renovación
       </button>
 
       {renewalPreview && renewalPreview.id === loan.id && (
@@ -1156,6 +1315,10 @@ function LoanDetail({
           <div className="calc-line"><span>Nueva cuota</span><strong>{formatMoney(loan.paymentAmount)}</strong></div>
           <div className="calc-line"><span>Nuevo total esperado</span><strong>{formatMoney(renewal.totalExpected)}</strong></div>
           <small>Al confirmar, el préstamo actual quedaría como renovado y se abriría un nuevo ciclo desde el día 1.</small>
+          <button className="renew-button compact" onClick={onConfirmRenewal}>
+            <CheckCircle2 size={18} />
+            Confirmar renovación
+          </button>
         </div>
       )}
     </aside>
@@ -1163,20 +1326,24 @@ function LoanDetail({
 }
 
 function CustomerForm({
+  initialCustomer,
   nextId,
   onClose,
   onCreate,
+  onUpdate,
 }: {
+  initialCustomer: Customer | null
   nextId: number
   onClose: () => void
   onCreate: (customer: Customer) => void
+  onUpdate: (customer: Customer) => void
 }) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const form = new FormData(event.currentTarget)
     const customer: Customer = {
-      id: nextId,
+      id: initialCustomer?.id ?? nextId,
       name: String(form.get('name') || ''),
       phone: String(form.get('phone') || ''),
       address: String(form.get('address') || ''),
@@ -1187,7 +1354,11 @@ function CustomerForm({
       notes: String(form.get('notes') || ''),
     }
 
-    onCreate(customer)
+    if (initialCustomer) {
+      onUpdate(customer)
+    } else {
+      onCreate(customer)
+    }
   }
 
   return (
@@ -1196,7 +1367,7 @@ function CustomerForm({
         <div className="modal-header">
           <div>
             <p className="eyebrow">Onboarding</p>
-            <h2>Nuevo cliente</h2>
+            <h2>{initialCustomer ? 'Editar cliente' : 'Nuevo cliente'}</h2>
           </div>
           <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar formulario">
             <X size={18} />
@@ -1205,30 +1376,35 @@ function CustomerForm({
         <div className="form-grid">
           <label>
             Nombre completo
-            <input name="name" placeholder="Ej. Laura Méndez" required />
+            <input name="name" defaultValue={initialCustomer?.name} placeholder="Ej. Laura Méndez" required />
           </label>
           <label>
             Teléfono
-            <input name="phone" placeholder="(809) 555-0000" required />
+            <input name="phone" defaultValue={initialCustomer?.phone} placeholder="(809) 555-0000" required />
           </label>
           <label>
             Cédula / identificación
-            <input name="cedula" placeholder="037-0000000-0" />
+            <input name="cedula" defaultValue={initialCustomer?.cedula} placeholder="037-0000000-0" />
           </label>
           <label className="wide-span">
             Dirección
-            <input name="address" placeholder="Sector, ciudad o punto de referencia" required />
+            <input
+              name="address"
+              defaultValue={initialCustomer?.address}
+              placeholder="Sector, ciudad o punto de referencia"
+              required
+            />
           </label>
           <label>
             Cobrador asignado
-            <select name="collector" defaultValue="Rafael Santos">
+            <select name="collector" defaultValue={initialCustomer?.collector ?? 'Rafael Santos'}>
               <option>Rafael Santos</option>
               <option>Carlos Núñez</option>
             </select>
           </label>
           <label>
             Estado
-            <select name="status" defaultValue="Activo">
+            <select name="status" defaultValue={initialCustomer?.status ?? 'Activo'}>
               <option>Activo</option>
               <option>Atrasado</option>
               <option>Pagado</option>
@@ -1237,18 +1413,26 @@ function CustomerForm({
           </label>
           <label className="full-span">
             Referencias
-            <textarea name="references" placeholder="Nombre, teléfono, negocio o relación de la referencia" />
+            <textarea
+              name="references"
+              defaultValue={initialCustomer?.references}
+              placeholder="Nombre, teléfono, negocio o relación de la referencia"
+            />
           </label>
           <label className="full-span">
             Notas
-            <textarea name="notes" placeholder="Observaciones del cliente, negocio, ruta o condiciones iniciales" />
+            <textarea
+              name="notes"
+              defaultValue={initialCustomer?.notes}
+              placeholder="Observaciones del cliente, negocio, ruta o condiciones iniciales"
+            />
           </label>
         </div>
         <div className="modal-actions">
           <button className="secondary-button" type="button" onClick={onClose}>Cancelar</button>
           <button className="primary-button" type="submit">
             <CheckCircle2 size={18} />
-            Guardar cliente
+            {initialCustomer ? 'Actualizar cliente' : 'Guardar cliente'}
           </button>
         </div>
       </form>
@@ -1256,23 +1440,61 @@ function CustomerForm({
   )
 }
 
-function LoanForm({ customers, onClose }: { customers: Customer[]; onClose: () => void }) {
+function LoanForm({
+  customers,
+  defaultCustomerId,
+  nextId,
+  onClose,
+  onCreate,
+}: {
+  customers: Customer[]
+  defaultCustomerId?: number
+  nextId: number
+  onClose: () => void
+  onCreate: (loan: Loan) => void
+}) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const form = new FormData(event.currentTarget)
+    const startDate = String(form.get('startDate') || formatDateInput(new Date()))
+    const frequency = String(form.get('frequency') || 'Diario') as Frequency
+    const payments = Number(form.get('payments') || 45)
+    const loan: Loan = {
+      id: nextId,
+      customerId: Number(form.get('customerId') || customers[0]?.id),
+      principal: Number(form.get('principal') || 0),
+      paymentAmount: Number(form.get('paymentAmount') || 0),
+      frequency,
+      payments,
+      paidPayments: 0,
+      startDate,
+      endDate: calculateEndDate(startDate, payments, frequency),
+      collector: String(form.get('collector') || ''),
+      lateFee: Number(form.get('lateFee') || 0),
+      graceDays: Number(form.get('graceDays') || 0),
+      status: 'Activo',
+    }
+
+    onCreate(loan)
+  }
+
   return (
     <div className="modal-layer">
-      <div className="modal-card">
+      <form className="modal-card" onSubmit={handleSubmit}>
         <div className="modal-header">
           <div>
             <p className="eyebrow">Asignación</p>
             <h2>Nuevo préstamo</h2>
           </div>
-          <button className="icon-button" onClick={onClose} aria-label="Cerrar formulario">
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar formulario">
             <X size={18} />
           </button>
         </div>
         <div className="form-grid">
           <label>
             Cliente
-            <select defaultValue={customers[0].id}>
+            <select name="customerId" defaultValue={defaultCustomerId ?? customers[0]?.id}>
               {customers.map((customer) => (
                 <option value={customer.id} key={customer.id}>{customer.name}</option>
               ))}
@@ -1280,15 +1502,15 @@ function LoanForm({ customers, onClose }: { customers: Customer[]; onClose: () =
           </label>
           <label>
             Principal
-            <input defaultValue="5000" />
+            <input name="principal" defaultValue="5000" />
           </label>
           <label>
             Fecha de inicio
-            <input type="date" defaultValue="2026-05-08" />
+            <input name="startDate" type="date" defaultValue={formatDateInput(new Date())} />
           </label>
           <label>
             Frecuencia
-            <select defaultValue="Diario">
+            <select name="frequency" defaultValue="Diario">
               <option>Diario</option>
               <option>Semanal</option>
               <option>Mensual</option>
@@ -1296,23 +1518,23 @@ function LoanForm({ customers, onClose }: { customers: Customer[]; onClose: () =
           </label>
           <label>
             Monto de cuota
-            <input defaultValue="145" />
+            <input name="paymentAmount" defaultValue="145" />
           </label>
           <label>
             Número de cuotas
-            <input defaultValue="45" />
+            <input name="payments" defaultValue="45" />
           </label>
           <label>
             Mora %
-            <input defaultValue="4" />
+            <input name="lateFee" defaultValue="4" />
           </label>
           <label>
             Gracia en días
-            <input defaultValue="3" />
+            <input name="graceDays" defaultValue="3" />
           </label>
           <label>
             Cobrador
-            <select defaultValue="Rafael Santos">
+            <select name="collector" defaultValue="Rafael Santos">
               <option>Rafael Santos</option>
               <option>Carlos Núñez</option>
             </select>
@@ -1323,18 +1545,26 @@ function LoanForm({ customers, onClose }: { customers: Customer[]; onClose: () =
           </label>
         </div>
         <div className="modal-actions">
-          <button className="secondary-button" onClick={onClose}>Cancelar</button>
-          <button className="primary-button" onClick={onClose}>
+          <button className="secondary-button" type="button" onClick={onClose}>Cancelar</button>
+          <button className="primary-button" type="submit">
             <CheckCircle2 size={18} />
             Guardar préstamo
           </button>
         </div>
-      </div>
+      </form>
     </div>
   )
 }
 
-function PaymentsView() {
+function PaymentsView({
+  context,
+  customer,
+  loan,
+}: {
+  context: PaymentContext | null
+  customer: Customer | null
+  loan: Loan | null
+}) {
   return (
     <section className="panel table-panel">
       <div className="panel-header">
@@ -1347,6 +1577,18 @@ function PaymentsView() {
           Registrar pago
         </button>
       </div>
+      {context && customer && (
+        <div className="context-strip">
+          <div>
+            <span>Contexto seleccionado</span>
+            <strong>
+              {customer.name}
+              {loan ? ` · Préstamo #${loan.id}` : ''}
+            </strong>
+          </div>
+          <small>{context.source === 'prestamo' ? 'Acción desde préstamos' : 'Acción desde clientes'}</small>
+        </div>
+      )}
       <div className="responsive-table">
         <table>
           <thead>
