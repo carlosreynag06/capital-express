@@ -383,7 +383,7 @@ const formatMoney = (value: number) =>
   }).format(value)
 
 function getCustomer(customers: Customer[], id: number) {
-  return customers.find((customer) => customer.id === id) ?? customers[0]
+  return customers.find((customer) => customer.id === id) ?? null
 }
 
 function getRenewalMath(loan: Loan, newPrincipal = loan.principal) {
@@ -630,6 +630,9 @@ function App() {
                 setSelectedLoan(null)
                 setRenewalPreview(null)
               }
+              if (paymentContext?.customerId === customer.id) {
+                setPaymentContext(null)
+              }
             }}
             onGoPayments={(context) => openPaymentContext(context)}
             onOpenLoan={openLoan}
@@ -747,6 +750,9 @@ function Dashboard({
         <div className="renewal-grid">
           {eligibleRenewals.map((loan) => {
             const customer = getCustomer(customers, loan.customerId)
+            if (!customer) {
+              return null
+            }
             const progress = Math.round((loan.paidPayments / loan.payments) * 100)
             const renewal = getRenewalMath(loan)
 
@@ -1099,6 +1105,9 @@ function LoansView({
             <tbody>
               {loans.map((loan) => {
                 const customer = getCustomer(customers, loan.customerId)
+                if (!customer) {
+                  return null
+                }
 
                 return (
                   <tr className="interactive-row" key={loan.id} onClick={() => onOpenLoan(loan)}>
@@ -1254,7 +1263,7 @@ function LoanDetail({
   onConfirmRenewal,
 }: {
   loan: Loan
-  customer: Customer
+  customer: Customer | null
   renewalPreview: Loan | null
   onClose: () => void
   onRenew: () => void
@@ -1268,7 +1277,7 @@ function LoanDetail({
       <div className="sheet-header">
         <div>
           <p className="eyebrow">Préstamo #{loan.id}</p>
-          <h2>{customer.name}</h2>
+          <h2>{customer?.name ?? 'Cliente no disponible'}</h2>
         </div>
         <div className="sheet-actions">
           <StatusBadge status={loan.status} />
