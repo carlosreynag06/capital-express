@@ -635,6 +635,14 @@ td {
   z-index: 2;
 }
 
+.quick-actions-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 11;
+  border: 0;
+  background: transparent;
+}
+
 .quick-menu {
   position: absolute;
   top: calc(100% + 7px);
@@ -649,7 +657,9 @@ td {
 }
 
 .quick-menu button {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   width: 100%;
   min-height: 36px;
   padding: 0 10px;
@@ -660,6 +670,10 @@ td {
   font-size: 13px;
   font-weight: 800;
   text-align: left;
+}
+
+.quick-menu button svg {
+  flex: 0 0 auto;
 }
 
 .quick-menu button:hover {

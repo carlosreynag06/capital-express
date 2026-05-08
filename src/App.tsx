@@ -12,14 +12,17 @@ import {
   LayoutDashboard,
   Menu,
   MoreHorizontal,
+  Pencil,
   Plus,
   ReceiptText,
   RefreshCcw,
   Search,
   ShieldCheck,
+  Trash2,
   Users,
   X,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import {
   Area,
   AreaChart,
@@ -762,6 +765,7 @@ function CustomersView({
                       <QuickActions
                         isOpen={openActions === customer.id}
                         label="Acciones del cliente"
+                        onRequestClose={() => setOpenActions(null)}
                         onToggle={(event) => {
                           event.stopPropagation()
                           setOpenActions(openActions === customer.id ? null : customer.id)
@@ -769,6 +773,7 @@ function CustomersView({
                         actions={[
                           {
                             label: 'Asignar préstamo',
+                            icon: HandCoins,
                             onSelect: () => {
                               onSelectCustomer(customer)
                               onNewLoan()
@@ -777,6 +782,7 @@ function CustomersView({
                           },
                           {
                             label: 'Editar cliente',
+                            icon: Pencil,
                             onSelect: () => {
                               onSelectCustomer(customer)
                               setOpenActions(null)
@@ -784,6 +790,7 @@ function CustomersView({
                           },
                           {
                             label: 'Registrar pago',
+                            icon: ReceiptText,
                             onSelect: () => {
                               onGoPayments()
                               setOpenActions(null)
@@ -791,6 +798,7 @@ function CustomersView({
                           },
                           {
                             label: 'Eliminar cliente',
+                            icon: Trash2,
                             tone: 'danger',
                             onSelect: () => {
                               setOpenActions(null)
@@ -800,6 +808,7 @@ function CustomersView({
                             ? [
                                 {
                                   label: 'Abrir préstamo activo',
+                                  icon: HandCoins,
                                   onSelect: () => {
                                     onOpenLoan(customerActiveLoans[0])
                                     setOpenActions(null)
@@ -949,6 +958,7 @@ function LoansView({
                       <QuickActions
                         isOpen={openActions === loan.id}
                         label="Acciones del préstamo"
+                        onRequestClose={() => setOpenActions(null)}
                         onToggle={(event) => {
                           event.stopPropagation()
                           setOpenActions(openActions === loan.id ? null : loan.id)
@@ -956,6 +966,7 @@ function LoansView({
                         actions={[
                           {
                             label: 'Saldar préstamo',
+                            icon: CheckCircle2,
                             onSelect: () => {
                               onPayOffLoan(loan)
                               setOpenActions(null)
@@ -963,6 +974,7 @@ function LoansView({
                           },
                           {
                             label: 'Renovar préstamo',
+                            icon: RefreshCcw,
                             onSelect: () => {
                               onOpenLoan(loan)
                               onRenew(loan)
@@ -971,6 +983,7 @@ function LoansView({
                           },
                           {
                             label: 'Registrar pago',
+                            icon: ReceiptText,
                             onSelect: () => {
                               onGoPayments()
                               setOpenActions(null)
@@ -978,6 +991,7 @@ function LoansView({
                           },
                           {
                             label: 'Ver cliente',
+                            icon: Users,
                             onSelect: () => {
                               onOpenCustomer(customer)
                               setOpenActions(null)
@@ -1012,11 +1026,13 @@ function QuickActions({
   actions,
   isOpen,
   label,
+  onRequestClose,
   onToggle,
 }: {
-  actions: Array<{ label: string; onSelect: () => void; tone?: 'danger' }>
+  actions: Array<{ label: string; icon: LucideIcon; onSelect: () => void; tone?: 'danger' }>
   isOpen: boolean
   label: string
+  onRequestClose: () => void
   onToggle: (event: MouseEvent<HTMLButtonElement>) => void
 }) {
   return (
@@ -1025,13 +1041,25 @@ function QuickActions({
         <MoreHorizontal size={18} />
       </button>
       {isOpen && (
-        <div className="quick-menu">
-          {actions.map((action) => (
-            <button className={action.tone === 'danger' ? 'danger-action' : undefined} key={action.label} onClick={action.onSelect}>
-              {action.label}
-            </button>
-          ))}
-        </div>
+        <>
+          <button className="quick-actions-backdrop" onClick={onRequestClose} aria-label="Cerrar acciones" />
+          <div className="quick-menu">
+            {actions.map((action) => {
+              const Icon = action.icon
+
+              return (
+                <button
+                  className={action.tone === 'danger' ? 'danger-action' : undefined}
+                  key={action.label}
+                  onClick={action.onSelect}
+                >
+                  <Icon size={15} />
+                  {action.label}
+                </button>
+              )
+            })}
+          </div>
+        </>
       )}
     </div>
   )
