@@ -59,6 +59,7 @@ type Loan = {
   frequency: Frequency
   payments: number
   paidPayments: number
+  paidAmount?: number
   startDate: string
   endDate: string
   collector: string
@@ -402,7 +403,7 @@ function getCustomer(customers: Customer[], id: number) {
 
 function getRenewalMath(loan: Loan, newPrincipal = loan.principal) {
   const totalExpected = loan.paymentAmount * loan.payments
-  const alreadyPaid = loan.paymentAmount * loan.paidPayments
+  const alreadyPaid = getLoanPaidAmount(loan)
   const payoffBalance = Math.max(0, totalExpected - alreadyPaid)
   const amountToCustomer = Math.max(0, newPrincipal - payoffBalance)
 
@@ -413,6 +414,67 @@ function getRenewalMath(loan: Loan, newPrincipal = loan.principal) {
     newPrincipal,
     amountToCustomer,
   }
+}
+
+function getLoanPaidAmount(loan: Loan) {
+  return loan.paidAmount ?? loan.paymentAmount * loan.paidPayments
+}
+
+function getLoanProgress(loan: Loan) {
+  const totalExpected = loan.paymentAmount * loan.payments
+  const paidAmount = getLoanPaidAmount(loan)
+
+  return {
+    paidAmount,
+    paidPayments: Math.min(loan.payments, Math.floor(paidAmount / loan.paymentAmount)),
+    totalExpected,
+    remaining: Math.max(0, totalExpected - paidAmount),
+    percent: totalExpected > 0 ? Math.min(100, Math.round((paidAmount / totalExpected) * 100)) : 0,
+  }
+}
+
+function applyPaymentToLoan(loan: Loan, amount: number, paymentStatus: PaymentRecord['status'] = 'A tiempo') {
+  const totalExpected = loan.paymentAmount * loan.payments
+  const paidAmount = Math.min(totalExpected, getLoanPaidAmount(loan) + amount)
+  const paidPayments = Math.min(loan.payments, Math.floor(paidAmount / loan.paymentAmount))
+  const status =
+    paidAmount >= totalExpected
+      ? ('Pagado' as LoanStatus)
+      : paymentStatus === 'Tarde'
+        ? ('Atrasado' as LoanStatus)
+        : loan.status
+
+  return {
+    ...loan,
+    paidAmount,
+    paidPayments,
+    status,
+  }
+}
+
+function getCustomerStatusFromLoans(loans: Loan[], customer: Customer): CustomerStatus {
+  const customerLoans = loans.filter((loan) => loan.customerId === customer.id)
+
+  if (customerLoans.some((loan) => loan.status === 'Atrasado')) {
+    return 'Atrasado'
+  }
+
+  if (customerLoans.some((loan) => loan.status === 'Activo')) {
+    return 'Activo'
+  }
+
+  if (customerLoans.some((loan) => loan.status === 'Pagado')) {
+    return 'Pagado'
+  }
+
+  return customer.status
+}
+
+function syncCustomerStatuses(customers: Customer[], loans: Loan[]) {
+  return customers.map((customer) => ({
+    ...customer,
+    status: getCustomerStatusFromLoans(loans, customer),
+  }))
 }
 
 function getNextId(records: Array<{ id: number }>) {
@@ -468,13 +530,14 @@ function App() {
       .filter((loan) => loan.status === 'Activo' || loan.status === 'Atrasado')
       .reduce((sum, loan) => sum + loan.principal, 0)
     const expected = loanRecords.reduce((sum, loan) => sum + loan.paymentAmount * loan.payments, 0)
-    const collected = loanRecords.reduce((sum, loan) => sum + loan.paymentAmount * loan.paidPayments, 0)
+    const collected = loanRecords.reduce((sum, loan) => sum + getLoanPaidAmount(loan), 0)
+    const lateFeesCollected = paymentRecords.reduce((sum, payment) => sum + payment.lateFeeAmount, 0)
     const collectedToday = paymentRecords
       .filter((payment) => payment.date === formatDateInput(new Date()))
       .reduce((sum, payment) => sum + payment.amount + payment.lateFeeAmount, 0)
-    const principalRecovered = Math.min(collected, loanRecords.reduce((sum, loan) => sum + loan.principal, 0))
+    const principalRecovered = loanRecords.reduce((sum, loan) => sum + Math.min(getLoanPaidAmount(loan), loan.principal), 0)
     const expensesTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0)
-    const grossProfit = Math.max(0, collected - principalRecovered)
+    const grossProfit = Math.max(0, collected - principalRecovered) + lateFeesCollected
     const netProfit = grossProfit - expensesTotal
 
     return {
@@ -495,7 +558,7 @@ function App() {
   const eligibleRenewals = loanRecords.filter(
     (loan) =>
       (loan.status === 'Activo' || loan.status === 'Atrasado') &&
-      loan.paidPayments >= Math.ceil(loan.payments * 0.5),
+      getLoanPaidAmount(loan) >= loan.paymentAmount * loan.payments * 0.5,
   )
 
   function openLoan(loan: Loan) {
@@ -509,7 +572,14 @@ function App() {
   }
 
   function createLoanFromForm(loan: Loan) {
-    setLoanRecords((records) => [...records, loan])
+    setLoanRecords((records) => {
+      const nextRecords = [...records, loan]
+      setCustomerRecords((customers) => syncCustomerStatuses(customers, nextRecords))
+      setSelectedCustomer((customer) =>
+        customer?.id === loan.customerId ? { ...customer, status: getCustomerStatusFromLoans(nextRecords, customer) } : customer,
+      )
+      return nextRecords
+    })
     setSelectedLoan(loan)
     setSelectedCustomer(customerRecords.find((customer) => customer.id === loan.customerId) ?? null)
     setRenewalPreview(null)
@@ -523,16 +593,24 @@ function App() {
       ...loan,
       id: getNextId(loanRecords),
       paidPayments: 0,
+      paidAmount: 0,
       startDate: formatDateInput(new Date()),
       endDate: calculateEndDate(formatDateInput(new Date()), loan.payments, loan.frequency),
       status: 'Activo',
     }
     const renewedLoan = { ...loan, status: 'Renovado' as LoanStatus }
 
-    setLoanRecords((records) => [
-      ...records.map((record) => (record.id === loan.id ? renewedLoan : record)),
-      newLoan,
-    ])
+    setLoanRecords((records) => {
+      const nextRecords = [
+        ...records.map((record) => (record.id === loan.id ? renewedLoan : record)),
+        newLoan,
+      ]
+      setCustomerRecords((customers) => syncCustomerStatuses(customers, nextRecords))
+      setSelectedCustomer((customer) =>
+        customer?.id === loan.customerId ? { ...customer, status: getCustomerStatusFromLoans(nextRecords, customer) } : customer,
+      )
+      return nextRecords
+    })
     setSelectedLoan(newLoan)
     setRenewalPreview(null)
     setActiveView('Préstamos')
@@ -545,28 +623,20 @@ function App() {
 
   function registerPayment(payment: PaymentRecord) {
     setPaymentRecords((records) => [payment, ...records])
-    setLoanRecords((records) =>
-      records.map((loan) => {
-        if (loan.id !== payment.loanId) {
-          return loan
-        }
-
-        const paidPayments = Math.min(loan.payments, Math.max(loan.paidPayments, payment.paymentNumber))
-        return {
-          ...loan,
-          paidPayments,
-          status: paidPayments >= loan.payments ? 'Pagado' : loan.status,
-        }
-      }),
-    )
+    setLoanRecords((records) => {
+      const nextRecords = records.map((loan) =>
+        loan.id === payment.loanId ? applyPaymentToLoan(loan, payment.amount, payment.status) : loan,
+      )
+      setCustomerRecords((customers) => syncCustomerStatuses(customers, nextRecords))
+      setSelectedCustomer((customer) =>
+        customer?.id === payment.customerId
+          ? { ...customer, status: getCustomerStatusFromLoans(nextRecords, customer) }
+          : customer,
+      )
+      return nextRecords
+    })
     setSelectedLoan((loan) =>
-      loan?.id === payment.loanId
-        ? {
-            ...loan,
-            paidPayments: Math.min(loan.payments, Math.max(loan.paidPayments, payment.paymentNumber)),
-            status: Math.min(loan.payments, Math.max(loan.paidPayments, payment.paymentNumber)) >= loan.payments ? 'Pagado' : loan.status,
-          }
-        : loan,
+      loan?.id === payment.loanId ? applyPaymentToLoan(loan, payment.amount, payment.status) : loan,
     )
   }
 
@@ -700,8 +770,22 @@ function App() {
               setShowLoanForm(true)
             }}
             onPayOffLoan={(loan) => {
-              const paidLoan = { ...loan, paidPayments: loan.payments, status: 'Pagado' as LoanStatus }
-              setLoanRecords((records) => records.map((record) => (record.id === loan.id ? paidLoan : record)))
+              const paidLoan = {
+                ...loan,
+                paidAmount: loan.paymentAmount * loan.payments,
+                paidPayments: loan.payments,
+                status: 'Pagado' as LoanStatus,
+              }
+              setLoanRecords((records) => {
+                const nextRecords = records.map((record) => (record.id === loan.id ? paidLoan : record))
+                setCustomerRecords((customers) => syncCustomerStatuses(customers, nextRecords))
+                setSelectedCustomer((customer) =>
+                  customer?.id === loan.customerId
+                    ? { ...customer, status: getCustomerStatusFromLoans(nextRecords, customer) }
+                    : customer,
+                )
+                return nextRecords
+              })
               setSelectedLoan(paidLoan)
               setRenewalPreview(null)
             }}
@@ -804,7 +888,7 @@ function Dashboard({
             if (!customer) {
               return null
             }
-            const progress = Math.round((loan.paidPayments / loan.payments) * 100)
+            const progress = getLoanProgress(loan)
             const renewal = getRenewalMath(loan)
 
             return (
@@ -817,14 +901,14 @@ function Dashboard({
                   </div>
                 </div>
                 <div className="renewal-progress">
-                  <span style={{ width: `${progress}%` }} />
+                  <span style={{ width: `${progress.percent}%` }} />
                 </div>
                 <div className="renewal-facts">
-                  <span>{loan.paidPayments}/{loan.payments} cuotas</span>
-                  <strong>{progress}%</strong>
+                  <span>{progress.paidPayments}/{loan.payments} cuotas cubiertas</span>
+                  <strong>{progress.percent}%</strong>
                 </div>
                 <div className="renewal-money">
-                  <span>Pagado: {formatMoney(renewal.alreadyPaid)}</span>
+                  <span>Pagado: {formatMoney(progress.paidAmount)}</span>
                   <span>Balance a cerrar: {formatMoney(renewal.payoffBalance)}</span>
                 </div>
                 <div className="receive-box">
@@ -1062,7 +1146,7 @@ function CustomersView({
                 <button className="loan-mini" key={loan.id} onClick={() => onOpenLoan(loan)}>
                   <div>
                     <strong>#{loan.id} · {formatMoney(loan.principal)}</strong>
-                    <span>{loan.frequency} · {loan.paidPayments}/{loan.payments} cuotas</span>
+                    <span>{loan.frequency} · {getLoanProgress(loan).paidPayments}/{loan.payments} cuotas</span>
                   </div>
                   <ChevronRight size={17} />
                 </button>
@@ -1175,7 +1259,7 @@ function LoansView({
                     </td>
                     <td>{formatMoney(loan.principal)}</td>
                     <td>{formatMoney(loan.paymentAmount)} · {loan.frequency}</td>
-                    <td>{loan.paidPayments}/{loan.payments}</td>
+                    <td>{getLoanProgress(loan).paidPayments}/{loan.payments}</td>
                     <td><StatusBadge status={loan.status} /></td>
                     <td>
                       <QuickActions
@@ -1323,7 +1407,7 @@ function LoanDetail({
   onConfirmRenewal: () => void
 }) {
   const renewal = getRenewalMath(loan)
-  const progress = Math.round((loan.paidPayments / loan.payments) * 100)
+  const progress = getLoanProgress(loan)
 
   return (
     <aside className="detail-sheet loan-detail">
@@ -1343,10 +1427,10 @@ function LoanDetail({
       <div className="progress-block">
         <div>
           <span>Progreso de cuotas</span>
-          <strong>{progress}%</strong>
+          <strong>{progress.percent}%</strong>
         </div>
         <div className="progress-track">
-          <span style={{ width: `${progress}%` }} />
+          <span style={{ width: `${progress.percent}%` }} />
         </div>
       </div>
 
@@ -1355,6 +1439,7 @@ function LoanDetail({
         <Info label="Total esperado" value={formatMoney(renewal.totalExpected)} />
         <Info label="Pagado por cliente" value={formatMoney(renewal.alreadyPaid)} />
         <Info label="Balance para cierre" value={formatMoney(renewal.payoffBalance)} />
+        <Info label="Cuotas cubiertas" value={`${progress.paidPayments}/${loan.payments}`} />
         <Info label="Inicio" value={loan.startDate} />
         <Info label="Final calculado" value={loan.endDate} />
         <Info label="Mora" value={`${loan.lateFee}% después de ${loan.graceDays} días`} />
@@ -1530,6 +1615,7 @@ function LoanForm({
       frequency,
       payments,
       paidPayments: 0,
+      paidAmount: 0,
       startDate,
       endDate: calculateEndDate(startDate, payments, frequency),
       collector: String(form.get('collector') || ''),
@@ -1733,7 +1819,8 @@ function PaymentsView({
         <div className="stack-list">
           {activeLoans.slice(0, 6).map((loanRecord) => {
             const loanCustomer = getCustomer(customers, loanRecord.customerId)
-            const nextPayment = Math.min(loanRecord.payments, loanRecord.paidPayments + 1)
+            const progress = getLoanProgress(loanRecord)
+            const nextPayment = Math.min(loanRecord.payments, progress.paidPayments + 1)
 
             return (
               <button
@@ -1746,7 +1833,9 @@ function PaymentsView({
               >
                 <div>
                   <strong>{loanCustomer?.name ?? 'Cliente no disponible'}</strong>
-                  <span>Cuota {nextPayment}/{loanRecord.payments} · {formatMoney(loanRecord.paymentAmount)}</span>
+                  <span>
+                    Cuota {nextPayment}/{loanRecord.payments} · saldo {formatMoney(progress.remaining)}
+                  </span>
                 </div>
                 <StatusBadge status={loanRecord.status === 'Atrasado' ? 'Tarde' : 'A tiempo'} />
               </button>
@@ -1797,31 +1886,49 @@ function PaymentForm({
     (selectedLoan && candidateLoans.some((loan) => loan.id === selectedLoan.id) ? selectedLoan : null) ??
     candidateLoans.find((loan) => loan.id === context?.loanId) ??
     candidateLoans[0]
-  const defaultCustomer = defaultLoan ? getCustomer(customers, defaultLoan.customerId) : null
+  const [selectedLoanId, setSelectedLoanId] = useState(defaultLoan?.id ?? 0)
+  const currentLoan = candidateLoans.find((loan) => loan.id === selectedLoanId) ?? defaultLoan
+  const defaultCustomer = currentLoan ? getCustomer(customers, currentLoan.customerId) : null
+  const currentProgress = currentLoan ? getLoanProgress(currentLoan) : null
+  const [amount, setAmount] = useState(currentLoan?.paymentAmount ?? 0)
+  const [status, setStatus] = useState<PaymentRecord['status']>(currentLoan?.status === 'Atrasado' ? 'Tarde' : 'A tiempo')
+  const [lateFeeAmount, setLateFeeAmount] = useState(
+    currentLoan?.status === 'Atrasado' ? Math.round(currentLoan.paymentAmount * (currentLoan.lateFee / 100)) : 0,
+  )
+  const safeAmount = Number.isFinite(amount) ? Math.max(0, amount) : 0
+  const safeLateFeeAmount = Number.isFinite(lateFeeAmount) ? Math.max(0, lateFeeAmount) : 0
+  const effectiveAmount =
+    currentLoan && currentProgress
+      ? Math.min(currentProgress.remaining, status === 'Cerrado' ? Math.max(safeAmount, currentProgress.remaining) : safeAmount)
+      : safeAmount
+  const coveredPaymentNumber =
+    currentLoan && currentProgress
+      ? Math.min(currentLoan.payments, Math.floor((currentProgress.paidAmount + effectiveAmount) / currentLoan.paymentAmount))
+      : 0
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const form = new FormData(event.currentTarget)
-    const loanId = Number(form.get('loanId') || defaultLoan?.id)
-    const loan = loans.find((loanRecord) => loanRecord.id === loanId) ?? defaultLoan
+    const loan = currentLoan
     if (!loan) {
       return
     }
 
-    const status = String(form.get('status') || 'A tiempo') as PaymentRecord['status']
+    const loanProgress = getLoanProgress(loan)
+    const paidAfterPayment = Math.min(loanProgress.totalExpected, loanProgress.paidAmount + effectiveAmount)
     const payment: PaymentRecord = {
       id: nextId,
       customerId: loan.customerId,
       loanId: loan.id,
       date: String(form.get('date') || formatDateInput(new Date())),
-      amount: Number(form.get('amount') || loan.paymentAmount),
-      paymentNumber: Math.min(loan.payments, Number(form.get('paymentNumber') || loan.paidPayments + 1)),
+      amount: effectiveAmount,
+      paymentNumber: Math.min(loan.payments, Math.floor(paidAfterPayment / loan.paymentAmount)),
       frequency: loan.frequency,
       collector: String(form.get('collector') || loan.collector),
       notes: String(form.get('notes') || ''),
       status,
-      lateFeeAmount: Number(form.get('lateFeeAmount') || 0),
+      lateFeeAmount: safeLateFeeAmount,
     }
 
     onSubmit(payment)
@@ -1839,19 +1946,30 @@ function PaymentForm({
             <X size={18} />
           </button>
         </div>
-        {defaultCustomer && defaultLoan && (
+        {defaultCustomer && currentLoan && (
           <div className="context-strip">
             <div>
               <span>Aplicando a</span>
-              <strong>{defaultCustomer.name} · Préstamo #{defaultLoan.id}</strong>
+              <strong>{defaultCustomer.name} · Préstamo #{currentLoan.id}</strong>
             </div>
-            <small>{defaultLoan.frequency}</small>
+            <small>{currentLoan.frequency}</small>
           </div>
         )}
         <div className="form-grid">
           <label className="wide-span">
             Préstamo
-            <select name="loanId" defaultValue={defaultLoan?.id}>
+            <select
+              name="loanId"
+              value={selectedLoanId}
+              onChange={(event) => {
+                const nextLoanId = Number(event.target.value)
+                const nextLoan = candidateLoans.find((loan) => loan.id === nextLoanId)
+                setSelectedLoanId(nextLoanId)
+                setAmount(nextLoan?.paymentAmount ?? 0)
+                setStatus(nextLoan?.status === 'Atrasado' ? 'Tarde' : 'A tiempo')
+                setLateFeeAmount(nextLoan?.status === 'Atrasado' ? Math.round(nextLoan.paymentAmount * (nextLoan.lateFee / 100)) : 0)
+              }}
+            >
               {candidateLoans.map((loan) => {
                 const customer = getCustomer(customers, loan.customerId)
 
@@ -1869,15 +1987,29 @@ function PaymentForm({
           </label>
           <label>
             Monto pagado
-            <input name="amount" defaultValue={defaultLoan?.paymentAmount ?? 0} />
+            <input name="amount" value={amount} onChange={(event) => setAmount(Number(event.target.value))} />
           </label>
           <label>
-            Número de cuota
-            <input name="paymentNumber" defaultValue={defaultLoan ? Math.min(defaultLoan.payments, defaultLoan.paidPayments + 1) : 1} />
+            Cuota que cubrirá
+            <input
+              name="paymentNumber"
+              value={coveredPaymentNumber}
+              readOnly
+            />
           </label>
           <label>
             Estado
-            <select name="status" defaultValue={defaultLoan?.status === 'Atrasado' ? 'Tarde' : 'A tiempo'}>
+            <select
+              name="status"
+              value={status}
+              onChange={(event) => {
+                const nextStatus = event.target.value as PaymentRecord['status']
+                setStatus(nextStatus)
+                if (nextStatus === 'Cerrado' && currentProgress) {
+                  setAmount(currentProgress.remaining)
+                }
+              }}
+            >
               <option>A tiempo</option>
               <option>Tarde</option>
               <option>Cerrado</option>
@@ -1885,11 +2017,11 @@ function PaymentForm({
           </label>
           <label>
             Mora cobrada
-            <input name="lateFeeAmount" defaultValue={defaultLoan?.status === 'Atrasado' ? Math.round(defaultLoan.paymentAmount * (defaultLoan.lateFee / 100)) : 0} />
+            <input name="lateFeeAmount" value={lateFeeAmount} onChange={(event) => setLateFeeAmount(Number(event.target.value))} />
           </label>
           <label>
             Cobrador
-            <select name="collector" defaultValue={defaultLoan?.collector ?? 'Rafael Santos'}>
+            <select name="collector" defaultValue={currentLoan?.collector ?? 'Rafael Santos'}>
               <option>Rafael Santos</option>
               <option>Carlos Núñez</option>
             </select>
