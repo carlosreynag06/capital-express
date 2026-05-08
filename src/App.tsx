@@ -14,6 +14,7 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  Receipt,
   ReceiptText,
   RefreshCcw,
   Search,
@@ -110,6 +111,30 @@ type DashboardTotals = {
   totalCollected: number
   investor: number
   partner: number
+}
+
+type MonthlyLiquidation = {
+  month: string
+  monthLabel: string
+  closeDateLabel: string
+  totalCollected: number
+  paymentCollected: number
+  principalRecovered: number
+  profitCollected: number
+  lateFeesCollected: number
+  expensesTotal: number
+  netProfit: number
+  distributableProfit: number
+  investor: number
+  partner: number
+  deficit: number
+  paymentCount: number
+  expenseCount: number
+  status: 'Pendiente' | 'Confirmada'
+}
+
+type LiquidationRecord = MonthlyLiquidation & {
+  confirmedAt: string
 }
 
 const initialCustomers: Customer[] = [
@@ -401,12 +426,79 @@ const initialExpenses: Expense[] = [
   { id: 3, type: 'Gestión de cobro', amount: 1400, date: '2026-04-30', description: 'Comisión cobro cierre de abril', owner: 'Carlos Núñez' },
 ]
 
+const initialLiquidationRecords: LiquidationRecord[] = [
+  {
+    month: '2026-04',
+    monthLabel: 'Abril 2026',
+    closeDateLabel: '30 abril',
+    totalCollected: 32450,
+    paymentCollected: 31980,
+    principalRecovered: 18700,
+    profitCollected: 13280,
+    lateFeesCollected: 470,
+    expensesTotal: 5330,
+    netProfit: 8420,
+    distributableProfit: 8420,
+    investor: 5052,
+    partner: 3368,
+    deficit: 0,
+    paymentCount: 27,
+    expenseCount: 5,
+    status: 'Confirmada',
+    confirmedAt: '2026-04-30',
+  },
+  {
+    month: '2026-03',
+    monthLabel: 'Marzo 2026',
+    closeDateLabel: '30 marzo',
+    totalCollected: 28750,
+    paymentCollected: 28420,
+    principalRecovered: 17120,
+    profitCollected: 11300,
+    lateFeesCollected: 330,
+    expensesTotal: 5355,
+    netProfit: 6275,
+    distributableProfit: 6275,
+    investor: 3765,
+    partner: 2510,
+    deficit: 0,
+    paymentCount: 22,
+    expenseCount: 4,
+    status: 'Confirmada',
+    confirmedAt: '2026-03-30',
+  },
+]
+
 const formatMoney = (value: number) =>
   new Intl.NumberFormat('es-DO', {
     style: 'currency',
     currency: 'DOP',
     maximumFractionDigits: 0,
   }).format(value)
+
+function getMonthKey(date: string) {
+  return date.slice(0, 7)
+}
+
+function getMonthLabel(month: string) {
+  const [year, monthNumber] = month.split('-').map(Number)
+  const date = new Date(year, monthNumber - 1, 1, 12)
+
+  return new Intl.DateTimeFormat('es-DO', {
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
+}
+
+function getCloseDateLabel(month: string) {
+  const [year, monthNumber] = month.split('-').map(Number)
+  const date = new Date(year, monthNumber - 1, 30, 12)
+
+  return new Intl.DateTimeFormat('es-DO', {
+    day: 'numeric',
+    month: 'long',
+  }).format(date)
+}
 
 function getCustomer(customers: Customer[], id: number) {
   return customers.find((customer) => customer.id === id) ?? null
@@ -460,6 +552,86 @@ function applyPaymentToLoan(loan: Loan, amount: number, paymentStatus: PaymentRe
     paidAmount,
     paidPayments,
     status,
+  }
+}
+
+function calculateMonthlyLiquidation({
+  month,
+  loans,
+  payments,
+  expenses,
+  confirmed,
+}: {
+  month: string
+  loans: Loan[]
+  payments: PaymentRecord[]
+  expenses: Expense[]
+  confirmed?: LiquidationRecord
+}): MonthlyLiquidation {
+  const monthlyPayments = payments
+    .filter((payment) => getMonthKey(payment.date) === month)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id)
+  const monthlyExpenses = expenses.filter((expense) => getMonthKey(expense.date) === month)
+  const paymentCollected = monthlyPayments.reduce((sum, payment) => sum + payment.amount, 0)
+  const lateFeesCollected = monthlyPayments.reduce((sum, payment) => sum + payment.lateFeeAmount, 0)
+  const expensesTotal = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0)
+  const recordedByLoan = new Map<number, number>()
+  const monthlyByLoan = new Map<number, PaymentRecord[]>()
+
+  payments.forEach((payment) => {
+    recordedByLoan.set(payment.loanId, (recordedByLoan.get(payment.loanId) ?? 0) + payment.amount)
+    if (getMonthKey(payment.date) === month) {
+      monthlyByLoan.set(payment.loanId, [...(monthlyByLoan.get(payment.loanId) ?? []), payment])
+    }
+  })
+
+  let principalRecovered = 0
+  let profitCollected = 0
+
+  loans.forEach((loan) => {
+    const loanPayments = monthlyByLoan.get(loan.id)
+    if (!loanPayments?.length) {
+      return
+    }
+
+    const recordedLoanTotal = recordedByLoan.get(loan.id) ?? 0
+    const inferredUnrecordedBefore = Math.max(0, getLoanPaidAmount(loan) - recordedLoanTotal)
+    const recordedBeforeMonth = payments
+      .filter((payment) => payment.loanId === loan.id && payment.date < `${month}-01`)
+      .reduce((sum, payment) => sum + payment.amount, 0)
+    let principalCovered = Math.min(loan.principal, inferredUnrecordedBefore + recordedBeforeMonth)
+
+    loanPayments
+      .sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id)
+      .forEach((payment) => {
+        const principalPart = Math.min(payment.amount, Math.max(0, loan.principal - principalCovered))
+        principalCovered += principalPart
+        principalRecovered += principalPart
+        profitCollected += Math.max(0, payment.amount - principalPart)
+      })
+  })
+
+  const netProfit = profitCollected + lateFeesCollected - expensesTotal
+  const distributableProfit = Math.max(0, netProfit)
+
+  return {
+    month,
+    monthLabel: getMonthLabel(month),
+    closeDateLabel: getCloseDateLabel(month),
+    totalCollected: paymentCollected + lateFeesCollected,
+    paymentCollected,
+    principalRecovered,
+    profitCollected,
+    lateFeesCollected,
+    expensesTotal,
+    netProfit,
+    distributableProfit,
+    investor: distributableProfit * 0.6,
+    partner: distributableProfit * 0.4,
+    deficit: Math.max(0, -netProfit),
+    paymentCount: monthlyPayments.length,
+    expenseCount: monthlyExpenses.length,
+    status: confirmed ? 'Confirmada' : 'Pendiente',
   }
 }
 
@@ -619,6 +791,8 @@ function App() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [paymentContext, setPaymentContext] = useState<PaymentContext | null>(null)
   const [expenseRecords, setExpenseRecords] = useState<Expense[]>(initialExpenses)
+  const [liquidationRecords, setLiquidationRecords] = useState<LiquidationRecord[]>(initialLiquidationRecords)
+  const [liquidationMonth] = useState(getMonthKey(formatDateInput(new Date())))
   const [searchTerm, setSearchTerm] = useState('')
 
   const totals = useMemo(() => {
@@ -658,6 +832,17 @@ function App() {
       (loan.status === 'Activo' || loan.status === 'Atrasado') &&
       getLoanPaidAmount(loan) >= loan.paymentAmount * loan.payments * 0.5,
   )
+  const monthlyLiquidation = useMemo(() => {
+    const confirmed = liquidationRecords.find((record) => record.month === liquidationMonth)
+
+    return calculateMonthlyLiquidation({
+      month: liquidationMonth,
+      loans: loanRecords,
+      payments: paymentRecords,
+      expenses: expenseRecords,
+      confirmed,
+    })
+  }, [expenseRecords, liquidationMonth, liquidationRecords, loanRecords, paymentRecords])
 
   function openLoan(loan: Loan) {
     setSelectedLoan(loan)
@@ -751,26 +936,61 @@ function App() {
         </div>
 
         <nav>
-          {[
-            ['Dashboard', LayoutDashboard],
-            ['Clientes', Users],
-            ['Préstamos', HandCoins],
-            ['Cuotas', ReceiptText],
-            ['Liquidación', Coins],
-            ['Reportes', FileText],
-          ].map(([label, Icon]) => (
-            <button
-              className={activeView === label ? 'nav-item active' : 'nav-item'}
-              key={label as string}
-              onClick={() => {
-                setActiveView(label as string)
-                setMenuOpen(false)
-              }}
-            >
-              <Icon size={18} />
-              {label as string}
-            </button>
-          ))}
+          <button
+            className={activeView === 'Dashboard' ? 'nav-item active' : 'nav-item'}
+            onClick={() => { setActiveView('Dashboard'); setMenuOpen(false) }}
+          >
+            <LayoutDashboard size={18} />
+            Dashboard
+          </button>
+
+          <p className="nav-section">Operaciones</p>
+
+          <button
+            className={activeView === 'Clientes' ? 'nav-item active' : 'nav-item'}
+            onClick={() => { setActiveView('Clientes'); setMenuOpen(false) }}
+          >
+            <Users size={18} />
+            Clientes
+          </button>
+          <button
+            className={activeView === 'Préstamos' ? 'nav-item active' : 'nav-item'}
+            onClick={() => { setActiveView('Préstamos'); setMenuOpen(false) }}
+          >
+            <HandCoins size={18} />
+            Préstamos
+          </button>
+          <button
+            className={activeView === 'Cuotas' ? 'nav-item active' : 'nav-item'}
+            onClick={() => { setActiveView('Cuotas'); setMenuOpen(false) }}
+          >
+            <ReceiptText size={18} />
+            Cuotas
+          </button>
+
+          <p className="nav-section">Finanzas</p>
+
+          <button
+            className={activeView === 'Gastos' ? 'nav-item active' : 'nav-item'}
+            onClick={() => { setActiveView('Gastos'); setMenuOpen(false) }}
+          >
+            <Receipt size={18} />
+            Gastos
+          </button>
+          <button
+            className={activeView === 'Liquidación' ? 'nav-item active' : 'nav-item'}
+            onClick={() => { setActiveView('Liquidación'); setMenuOpen(false) }}
+          >
+            <Coins size={18} />
+            Liquidación
+          </button>
+          <button
+            className={activeView === 'Reportes' ? 'nav-item active' : 'nav-item'}
+            onClick={() => { setActiveView('Reportes'); setMenuOpen(false) }}
+          >
+            <FileText size={18} />
+            Reportes
+          </button>
         </nav>
 
         <div className="session-card">
@@ -917,13 +1137,30 @@ function App() {
             onRegisterPayment={registerPayment}
           />
         )}
-        {activeView === 'Liquidación' && (
-          <LiquidationView
-            totals={totals}
+        {activeView === 'Gastos' && (
+          <GastosView
             expenses={expenseRecords}
             nextExpenseId={getNextId(expenseRecords)}
             onAddExpense={(expense) => setExpenseRecords((records) => [...records, expense])}
+            onEditExpense={(expense) => setExpenseRecords((records) => records.map((e) => e.id === expense.id ? expense : e))}
             onDeleteExpense={(id) => setExpenseRecords((records) => records.filter((e) => e.id !== id))}
+          />
+        )}
+        {activeView === 'Liquidación' && (
+          <LiquidationView
+            liquidation={monthlyLiquidation}
+            history={liquidationRecords}
+            onConfirm={(liquidation) => {
+              const record: LiquidationRecord = {
+                ...liquidation,
+                status: 'Confirmada',
+                confirmedAt: formatDateInput(new Date()),
+              }
+              setLiquidationRecords((records) => [
+                record,
+                ...records.filter((item) => item.month !== liquidation.month),
+              ])
+            }}
           />
         )}
         {activeView === 'Reportes' && <ReportsView />}
@@ -1130,6 +1367,13 @@ function CustomersView({
 
   return (
     <section className="customers-layout">
+      <PageBanner
+        variant="clientes"
+        eyebrow="Cartera activa"
+        title="Clientes"
+        text="Seguimiento de contactos, cobradores, historial y préstamos activos."
+      />
+
       <div className="panel table-panel">
         <div className="panel-header">
           <div>
@@ -1358,6 +1602,13 @@ function LoansView({
 
   return (
     <section className="loans-layout">
+      <PageBanner
+        variant="prestamos"
+        eyebrow="Capital en movimiento"
+        title="Préstamos"
+        text="Asignación, progreso, saldos, renovaciones y cierres de cada préstamo."
+      />
+
       <div className="panel table-panel">
         <div className="panel-header">
           <div>
@@ -2033,7 +2284,7 @@ function PaymentsView({
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel table-panel full-span">
         <div className="panel-header">
           <div>
             <p className="eyebrow">Pendientes</p>
@@ -2041,31 +2292,49 @@ function PaymentsView({
           </div>
           <CalendarDays size={20} />
         </div>
-        <div className="stack-list">
-          {activeLoans.slice(0, 6).map((loanRecord) => {
-            const loanCustomer = getCustomer(customers, loanRecord.customerId)
-            const progress = getLoanProgress(loanRecord)
-            const nextPayment = Math.min(loanRecord.payments, progress.paidPayments + 1)
+        <div className="responsive-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Préstamo</th>
+                <th>Próxima cuota</th>
+                <th>Vence</th>
+                <th>Monto</th>
+                <th>Saldo</th>
+                <th>Cobrador</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeLoans.map((loanRecord) => {
+                const loanCustomer = getCustomer(customers, loanRecord.customerId)
+                const progress = getLoanProgress(loanRecord)
+                const nextPayment = Math.min(loanRecord.payments, progress.paidPayments + 1)
+                const nextDueDate = getNextDueDate(loanRecord.startDate, progress.paidPayments, loanRecord.frequency)
 
-            return (
-              <button
-                className="list-row interactive"
-                key={loanRecord.id}
-                onClick={() => {
-                  setSelectedPaymentLoan(loanRecord)
-                  setShowPaymentForm(true)
-                }}
-              >
-                <div>
-                  <strong>{loanCustomer?.name ?? 'Cliente no disponible'}</strong>
-                  <span>
-                    Cuota {nextPayment}/{loanRecord.payments} · saldo {formatMoney(progress.remaining)}
-                  </span>
-                </div>
-                <StatusBadge status={loanRecord.status === 'Atrasado' ? 'Tarde' : 'A tiempo'} />
-              </button>
-            )
-          })}
+                return (
+                  <tr
+                    className="interactive-row"
+                    key={loanRecord.id}
+                    onClick={() => {
+                      setSelectedPaymentLoan(loanRecord)
+                      setShowPaymentForm(true)
+                    }}
+                  >
+                    <td>{loanCustomer?.name ?? 'Cliente no disponible'}</td>
+                    <td>#{loanRecord.id}</td>
+                    <td>{nextPayment}/{loanRecord.payments}</td>
+                    <td>{nextDueDate}</td>
+                    <td>{formatMoney(loanRecord.paymentAmount)}</td>
+                    <td>{formatMoney(progress.remaining)}</td>
+                    <td>{loanRecord.collector}</td>
+                    <td><StatusBadge status={loanRecord.status === 'Atrasado' ? 'Tarde' : 'A tiempo'} /></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -2277,81 +2546,222 @@ function PaymentForm({
 }
 
 function LiquidationView({
-  totals,
-  expenses,
-  nextExpenseId,
-  onAddExpense,
-  onDeleteExpense,
+  liquidation,
+  history,
+  onConfirm,
 }: {
-  totals: DashboardTotals
-  expenses: Expense[]
-  nextExpenseId: number
-  onAddExpense: (expense: Expense) => void
-  onDeleteExpense: (id: number) => void
+  liquidation: MonthlyLiquidation
+  history: LiquidationRecord[]
+  onConfirm: (liquidation: MonthlyLiquidation) => void
 }) {
-  const [showExpenseForm, setShowExpenseForm] = useState(false)
+  const profitMargin = liquidation.totalCollected > 0
+    ? Math.round((liquidation.netProfit / liquidation.totalCollected) * 100)
+    : 0
+  const alreadyConfirmed = history.some((record) => record.month === liquidation.month)
 
   return (
     <section className="liquidation-layout">
-      <div className="panel">
+      <div className="metric-grid compact">
+        <Metric icon={Coins} label="Ganancia neta" value={formatMoney(liquidation.netProfit)} />
+        <Metric icon={Banknote} label="Inversionista 60%" value={formatMoney(liquidation.investor)} />
+        <Metric icon={HandCoins} label="Socio cobrador 40%" value={formatMoney(liquidation.partner)} />
+        <Metric icon={CalendarDays} label="Cierre programado" value={liquidation.closeDateLabel} />
+      </div>
+
+      <div className="panel liquidation-summary">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Cierre manual · 30 de mayo</p>
+            <p className="eyebrow">Cierre manual · {liquidation.closeDateLabel}</p>
             <h2>Liquidación mensual</h2>
           </div>
-          <Coins size={21} />
+          <StatusBadge status={liquidation.status} />
         </div>
-        <div className="liquidation-lines">
-          <Calc label="Total cobrado" value={formatMoney(totals.totalCollected)} />
-          <Calc label="Principal recuperado" value={formatMoney(totals.principalRecovered)} />
-          <Calc label="Ganancia sobre principal" value={formatMoney(totals.grossProfit)} />
-          <Calc label="Gastos operativos" value={`-${formatMoney(totals.expensesTotal)}`} />
-          <Calc label="Ganancia neta" value={formatMoney(totals.netProfit)} strong />
-          <Calc label="Inversionista 60%" value={formatMoney(totals.investor)} />
-          <Calc label="Socio cobrador 40%" value={formatMoney(totals.partner)} />
+
+        <div className="liquidation-hero">
+          <div>
+            <span>Ganancia neta disponible</span>
+            <strong>{formatMoney(liquidation.netProfit)}</strong>
+            <small>
+              {liquidation.deficit > 0
+                ? `Déficit operativo: ${formatMoney(liquidation.deficit)}.`
+                : `Margen estimado: ${profitMargin}% después de gastos operativos.`}
+            </small>
+          </div>
+          <div>
+            <span>Total cobrado</span>
+            <strong>{formatMoney(liquidation.totalCollected)}</strong>
+            <small>{liquidation.paymentCount} pagos y {liquidation.expenseCount} gastos del mes.</small>
+          </div>
         </div>
-        <button className="confirm-button">
+
+        <div className="responsive-table">
+          <table className="liquidation-table">
+            <thead>
+              <tr>
+                <th>Principal recuperado</th>
+                <th>Ganancia sobre principal</th>
+                <th>Mora cobrada</th>
+                <th>Gastos operativos</th>
+                <th>Ganancia neta</th>
+                <th>Inversionista 60%</th>
+                <th>Socio cobrador 40%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{formatMoney(liquidation.principalRecovered)}</td>
+                <td>{formatMoney(liquidation.profitCollected)}</td>
+                <td>{formatMoney(liquidation.lateFeesCollected)}</td>
+                <td>-{formatMoney(liquidation.expensesTotal)}</td>
+                <td><strong>{formatMoney(liquidation.netProfit)}</strong></td>
+                <td>{formatMoney(liquidation.investor)}</td>
+                <td>{formatMoney(liquidation.partner)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <button
+          className="confirm-button"
+          disabled={alreadyConfirmed}
+          onClick={() => onConfirm(liquidation)}
+        >
           <CheckCircle2 size={18} />
-          Revisar y confirmar manualmente
+          {alreadyConfirmed ? 'Liquidación confirmada' : 'Revisar y confirmar manualmente'}
         </button>
       </div>
 
-      <div className="panel">
+      <div className="panel full-span">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Gastos</p>
-            <h2>Operación del mes</h2>
+            <p className="eyebrow">Historial</p>
+            <h2>Cierres anteriores</h2>
+          </div>
+          <Download size={21} />
+        </div>
+        <div className="responsive-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Mes</th>
+                <th>Total cobrado</th>
+                <th>Principal</th>
+                <th>Ganancia</th>
+                <th>Mora</th>
+                <th>Gastos</th>
+                <th>Ganancia neta</th>
+                <th>Inversionista</th>
+                <th>Socio cobrador</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((close) => (
+                <tr key={close.month}>
+                  <td><strong>{close.monthLabel}</strong></td>
+                  <td>{formatMoney(close.totalCollected)}</td>
+                  <td>{formatMoney(close.principalRecovered)}</td>
+                  <td>{formatMoney(close.profitCollected)}</td>
+                  <td>{formatMoney(close.lateFeesCollected)}</td>
+                  <td>-{formatMoney(close.expensesTotal)}</td>
+                  <td>{formatMoney(close.netProfit)}</td>
+                  <td>{formatMoney(close.investor)}</td>
+                  <td>{formatMoney(close.partner)}</td>
+                  <td><StatusBadge status={close.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function GastosView({
+  expenses,
+  nextExpenseId,
+  onAddExpense,
+  onEditExpense,
+  onDeleteExpense,
+}: {
+  expenses: Expense[]
+  nextExpenseId: number
+  onAddExpense: (expense: Expense) => void
+  onEditExpense: (expense: Expense) => void
+  onDeleteExpense: (id: number) => void
+}) {
+  const [showExpenseForm, setShowExpenseForm] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const total = expenses.reduce((sum, e) => sum + e.amount, 0)
+
+  return (
+    <section className="expenses-layout">
+      <PageBanner
+        variant="gastos"
+        eyebrow="Operación"
+        title="Gastos"
+        text="Control de combustible, materiales, salarios y costos operativos del mes."
+      />
+
+      <div className="panel full-span">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Operación</p>
+            <h2>Gastos del mes</h2>
           </div>
           <button className="primary-button" onClick={() => setShowExpenseForm(true)}>
             <Plus size={17} />
             Nuevo gasto
           </button>
         </div>
-        <div className="stack-list">
-          {expenses.map((expense) => (
-            <div className="list-row" key={expense.id}>
-              <div>
-                <strong>{expense.type}</strong>
-                <span>{expense.date} · {expense.owner}</span>
-                {expense.description && (
-                  <span style={{ display: 'block', marginTop: '2px', fontSize: '12px', color: '#64756f' }}>
-                    {expense.description}
-                  </span>
-                )}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <strong>{formatMoney(expense.amount)}</strong>
-                <button
-                  className="icon-button"
-                  style={{ color: '#b42318', background: '#fff1f0' }}
-                  onClick={() => onDeleteExpense(expense.id)}
-                  aria-label="Eliminar gasto"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="responsive-table">
+          <table>
+            <thead>
+              <tr className="summary-row">
+                <td colSpan={4}>Total gastos del mes</td>
+                <td>{formatMoney(total)}</td>
+                <td>{expenses.length} registros</td>
+              </tr>
+              <tr>
+                <th>Tipo</th>
+                <th>Descripción</th>
+                <th>Fecha</th>
+                <th>Registrado por</th>
+                <th>Monto</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {expenses.map((expense) => (
+                <tr key={expense.id}>
+                  <td><strong>{expense.type}</strong></td>
+                  <td>{expense.description || '—'}</td>
+                  <td>{expense.date}</td>
+                  <td>{expense.owner}</td>
+                  <td>{formatMoney(expense.amount)}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        className="icon-button"
+                        onClick={() => setEditingExpense(expense)}
+                        aria-label="Editar gasto"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        className="icon-button"
+                        style={{ color: '#b42318', background: '#fff1f0' }}
+                        onClick={() => onDeleteExpense(expense.id)}
+                        aria-label="Eliminar gasto"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -2365,16 +2775,29 @@ function LiquidationView({
           }}
         />
       )}
+      {editingExpense && (
+        <ExpenseForm
+          nextId={nextExpenseId}
+          initialExpense={editingExpense}
+          onClose={() => setEditingExpense(null)}
+          onCreate={(expense) => {
+            onEditExpense(expense)
+            setEditingExpense(null)
+          }}
+        />
+      )}
     </section>
   )
 }
 
 function ExpenseForm({
   nextId,
+  initialExpense,
   onClose,
   onCreate,
 }: {
   nextId: number
+  initialExpense?: Expense
   onClose: () => void
   onCreate: (expense: Expense) => void
 }) {
@@ -2382,7 +2805,7 @@ function ExpenseForm({
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     const expense: Expense = {
-      id: nextId,
+      id: initialExpense?.id ?? nextId,
       type: String(form.get('type') || ''),
       amount: Number(form.get('amount') || 0),
       date: String(form.get('date') || formatDateInput(new Date())),
@@ -2398,7 +2821,7 @@ function ExpenseForm({
         <div className="modal-header">
           <div>
             <p className="eyebrow">Gastos operativos</p>
-            <h2>Registrar gasto</h2>
+            <h2>{initialExpense ? 'Editar gasto' : 'Registrar gasto'}</h2>
           </div>
           <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar formulario">
             <X size={18} />
@@ -2407,19 +2830,19 @@ function ExpenseForm({
         <div className="form-grid">
           <label className="wide-span">
             Tipo de gasto
-            <input name="type" placeholder="Ej. Gasolina motor, Papelería" required />
+            <input name="type" defaultValue={initialExpense?.type} placeholder="Ej. Gasolina motor, Papelería" required />
           </label>
           <label>
             Monto
-            <input name="amount" type="number" min="0" defaultValue="0" required />
+            <input name="amount" type="number" min="0" defaultValue={initialExpense?.amount ?? 0} required />
           </label>
           <label>
             Fecha
-            <input name="date" type="date" defaultValue={formatDateInput(new Date())} />
+            <input name="date" type="date" defaultValue={initialExpense?.date ?? formatDateInput(new Date())} />
           </label>
           <label>
             Registrado por
-            <select name="owner" defaultValue="Admin">
+            <select name="owner" defaultValue={initialExpense?.owner ?? 'Admin'}>
               <option>Admin</option>
               <option>Rafael Santos</option>
               <option>Carlos Núñez</option>
@@ -2427,14 +2850,14 @@ function ExpenseForm({
           </label>
           <label className="full-span">
             Descripción
-            <textarea name="description" placeholder="Descripción detallada del gasto" />
+            <textarea name="description" defaultValue={initialExpense?.description} placeholder="Descripción detallada del gasto" />
           </label>
         </div>
         <div className="modal-actions">
           <button className="secondary-button" type="button" onClick={onClose}>Cancelar</button>
           <button className="primary-button" type="submit">
             <CheckCircle2 size={18} />
-            Guardar gasto
+            {initialExpense ? 'Actualizar gasto' : 'Guardar gasto'}
           </button>
         </div>
       </form>
@@ -2455,15 +2878,46 @@ function ReportsView() {
   ]
 
   return (
-    <section className="reports-grid">
-      {reports.map((report) => (
-        <button className="report-card" key={report}>
-          <FileText size={22} />
-          <span>{report}</span>
-          <small>Exportar PDF</small>
-          <Download size={18} />
-        </button>
-      ))}
+    <section className="reports-layout">
+      <PageBanner
+        variant="reportes"
+        eyebrow="Documentos"
+        title="Reportes"
+        text="Exportes manuales para clientes, préstamos, pagos, gastos y distribución de socios."
+      />
+
+      <div className="reports-grid">
+        {reports.map((report) => (
+          <button className="report-card" key={report}>
+            <FileText size={22} />
+            <span>{report}</span>
+            <small>Exportar PDF</small>
+            <Download size={18} />
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function PageBanner({
+  variant,
+  eyebrow,
+  title,
+  text,
+}: {
+  variant: 'clientes' | 'prestamos' | 'reportes' | 'gastos'
+  eyebrow: string
+  title: string
+  text: string
+}) {
+  return (
+    <section className={`page-banner banner-${variant}`}>
+      <div>
+        <p>{eyebrow}</p>
+        <h2>{title}</h2>
+        <span>{text}</span>
+      </div>
     </section>
   )
 }
@@ -2487,14 +2941,6 @@ function Info({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Calc({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className={strong ? 'calc-line strong' : 'calc-line'}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  )
-}
 
 function StatusBadge({ status }: { status: string }) {
   return <span className={`status ${status.toLowerCase().replace(/\s/g, '-')}`}>{status}</span>
