@@ -949,7 +949,15 @@ function LoansView({
 
                 return (
                   <tr className="interactive-row" key={loan.id} onClick={() => onOpenLoan(loan)}>
-                    <td>{customer.name}</td>
+                    <td>
+                      <div className="table-person">
+                        <div className="avatar">{customer.name.slice(0, 2)}</div>
+                        <div>
+                          <strong>{customer.name}</strong>
+                          <span>Préstamo #{loan.id}</span>
+                        </div>
+                      </div>
+                    </td>
                     <td>{formatMoney(loan.principal)}</td>
                     <td>{formatMoney(loan.paymentAmount)} · {loan.frequency}</td>
                     <td>{loan.paidPayments}/{loan.payments}</td>
