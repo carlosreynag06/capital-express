@@ -150,338 +150,6 @@ type LiquidationRecord = MonthlyLiquidation & {
   confirmedAt: string
 }
 
-const initialCustomers: Customer[] = [
-  {
-    id: 1,
-    name: 'Marisol De la Cruz',
-    phone: '(809) 555-2104',
-    address: 'Los Ciruelos, Puerto Plata',
-    cedula: '037-0043921-8',
-    collector: 'Rafael Santos',
-    status: 'Activo',
-    notes: 'Cliente puntual, negocio de comida en casa.',
-    references: 'Ana P. / Colmado La Fe',
-  },
-  {
-    id: 2,
-    name: 'Joel Martínez',
-    phone: '(829) 555-4418',
-    address: 'Ensanche Dubocq, Puerto Plata',
-    cedula: '037-1129845-2',
-    collector: 'Rafael Santos',
-    status: 'Atrasado',
-    notes: 'Debe regularizar dos cuotas antes del viernes.',
-    references: 'Pedro M. / Taller Joel',
-  },
-  {
-    id: 3,
-    name: 'Yudelka Peña',
-    phone: '(849) 555-3190',
-    address: 'Padre Las Casas, Puerto Plata',
-    cedula: '037-0938481-7',
-    collector: 'Carlos Núñez',
-    status: 'Activo',
-    notes: 'Interesada en renovación al llegar al pago 30.',
-    references: 'Miguel A. / Salón Yudy',
-  },
-  {
-    id: 4,
-    name: 'Ramón Batista',
-    phone: '(809) 555-9021',
-    address: 'Costambar, Puerto Plata',
-    cedula: '037-9938214-0',
-    collector: 'Carlos Núñez',
-    status: 'Pagado',
-    notes: 'Historial limpio. Puede aplicar a monto mayor.',
-    references: 'Francis B. / Ferretería Norte',
-  },
-  {
-    id: 5,
-    name: 'Claudia Rosario',
-    phone: '(829) 555-7812',
-    address: 'Cristo Rey, Puerto Plata',
-    cedula: '037-2048193-5',
-    collector: 'Rafael Santos',
-    status: 'Activo',
-    notes: 'Vende ropa por encargo. Buen flujo semanal.',
-    references: 'Lina R. / Boutique Claudia',
-  },
-  {
-    id: 6,
-    name: 'Andrés Peralta',
-    phone: '(849) 555-6744',
-    address: 'San Marcos, Puerto Plata',
-    cedula: '037-7742011-9',
-    collector: 'Carlos Núñez',
-    status: 'Activo',
-    notes: 'Cliente con negocio de repuestos. Solicita renovaciones frecuentes.',
-    references: 'Nelson P. / Repuestos La 30',
-  },
-  {
-    id: 7,
-    name: 'Nathalie Gómez',
-    phone: '(809) 555-3380',
-    address: 'El Javillar, Puerto Plata',
-    cedula: '037-6639104-1',
-    collector: 'Rafael Santos',
-    status: 'Activo',
-    notes: 'Pago diario en ruta de la tarde.',
-    references: 'Carolina G. / Estética Nath',
-  },
-  {
-    id: 8,
-    name: 'Luis Almanzar',
-    phone: '(829) 555-0449',
-    address: 'Avenida Colón, Puerto Plata',
-    cedula: '037-8812376-0',
-    collector: 'Carlos Núñez',
-    status: 'Atrasado',
-    notes: 'Revisar antes de aprobar renovación.',
-    references: 'José A. / Taller Colón',
-  },
-  {
-    id: 9,
-    name: 'Estefany Mejía',
-    phone: '(849) 555-9027',
-    address: 'Urbanización Atlántica, Puerto Plata',
-    cedula: '037-5483920-6',
-    collector: 'Rafael Santos',
-    status: 'Activo',
-    notes: 'Cliente nueva, todavía no cumple regla de renovación.',
-    references: 'Marta M. / Colmado Atlántico',
-  },
-  {
-    id: 10,
-    name: 'Héctor Polanco',
-    phone: '(809) 555-1185',
-    address: 'La Javilla, Puerto Plata',
-    cedula: '037-3382190-4',
-    collector: 'Carlos Núñez',
-    status: 'Activo',
-    notes: 'Pago semanal, seguimiento los sábados.',
-    references: 'Ramón P. / Ruta La Javilla',
-  },
-]
-
-const initialLoans: Loan[] = [
-  {
-    id: 1201,
-    customerId: 1,
-    principal: 5000,
-    paymentAmount: 145,
-    frequency: 'Diario',
-    payments: 45,
-    paidPayments: 23,
-    startDate: '2026-04-13',
-    endDate: '2026-06-03',
-    collector: 'Rafael Santos',
-    lateFee: 4,
-    graceDays: 3,
-    status: 'Activo',
-  },
-  {
-    id: 1202,
-    customerId: 2,
-    principal: 8000,
-    paymentAmount: 235,
-    frequency: 'Diario',
-    payments: 45,
-    paidPayments: 18,
-    startDate: '2026-04-07',
-    endDate: '2026-05-28',
-    collector: 'Rafael Santos',
-    lateFee: 5,
-    graceDays: 2,
-    status: 'Atrasado',
-  },
-  {
-    id: 1203,
-    customerId: 3,
-    principal: 5000,
-    paymentAmount: 145,
-    frequency: 'Diario',
-    payments: 45,
-    paidPayments: 30,
-    startDate: '2026-03-31',
-    endDate: '2026-05-21',
-    collector: 'Carlos Núñez',
-    lateFee: 4,
-    graceDays: 3,
-    status: 'Activo',
-  },
-  {
-    id: 1204,
-    customerId: 5,
-    principal: 6000,
-    paymentAmount: 175,
-    frequency: 'Diario',
-    payments: 45,
-    paidPayments: 24,
-    startDate: '2026-04-09',
-    endDate: '2026-05-30',
-    collector: 'Rafael Santos',
-    lateFee: 4,
-    graceDays: 3,
-    status: 'Activo',
-  },
-  {
-    id: 1205,
-    customerId: 6,
-    principal: 10000,
-    paymentAmount: 315,
-    frequency: 'Diario',
-    payments: 45,
-    paidPayments: 28,
-    startDate: '2026-04-02',
-    endDate: '2026-05-23',
-    collector: 'Carlos Núñez',
-    lateFee: 5,
-    graceDays: 3,
-    status: 'Activo',
-  },
-  {
-    id: 1206,
-    customerId: 7,
-    principal: 5000,
-    paymentAmount: 145,
-    frequency: 'Diario',
-    payments: 45,
-    paidPayments: 34,
-    startDate: '2026-03-24',
-    endDate: '2026-05-14',
-    collector: 'Rafael Santos',
-    lateFee: 4,
-    graceDays: 3,
-    status: 'Activo',
-  },
-  {
-    id: 1207,
-    customerId: 8,
-    principal: 7000,
-    paymentAmount: 210,
-    frequency: 'Diario',
-    payments: 45,
-    paidPayments: 23,
-    startDate: '2026-04-10',
-    endDate: '2026-05-31',
-    collector: 'Carlos Núñez',
-    lateFee: 5,
-    graceDays: 2,
-    status: 'Atrasado',
-  },
-  {
-    id: 1208,
-    customerId: 9,
-    principal: 4000,
-    paymentAmount: 125,
-    frequency: 'Diario',
-    payments: 45,
-    paidPayments: 14,
-    startDate: '2026-04-23',
-    endDate: '2026-06-13',
-    collector: 'Rafael Santos',
-    lateFee: 4,
-    graceDays: 3,
-    status: 'Activo',
-  },
-  {
-    id: 1209,
-    customerId: 10,
-    principal: 12000,
-    paymentAmount: 1850,
-    frequency: 'Semanal',
-    payments: 10,
-    paidPayments: 6,
-    startDate: '2026-03-28',
-    endDate: '2026-06-06',
-    collector: 'Carlos Núñez',
-    lateFee: 3,
-    graceDays: 4,
-    status: 'Activo',
-  },
-]
-
-const loanHistory = [
-  { customerId: 1, id: 1094, principal: 4000, total: 5200, closed: '2026-03-18', status: 'Pagado' },
-  { customerId: 2, id: 1110, principal: 5000, total: 6525, closed: '2026-03-25', status: 'Renovado' },
-  { customerId: 3, id: 1088, principal: 5000, total: 6525, closed: '2026-02-28', status: 'Pagado' },
-  { customerId: 4, id: 1122, principal: 7000, total: 9100, closed: '2026-04-30', status: 'Pagado' },
-  { customerId: 5, id: 1136, principal: 5000, total: 6525, closed: '2026-04-12', status: 'Pagado' },
-  { customerId: 6, id: 1144, principal: 8000, total: 10350, closed: '2026-04-18', status: 'Renovado' },
-  { customerId: 7, id: 1151, principal: 3500, total: 4550, closed: '2026-03-30', status: 'Pagado' },
-  { customerId: 10, id: 1160, principal: 9000, total: 11700, closed: '2026-04-20', status: 'Pagado' },
-]
-
-const collectionsTrend = [
-  { day: 'Lun', value: 10450 },
-  { day: 'Mar', value: 12890 },
-  { day: 'Mié', value: 11260 },
-  { day: 'Jue', value: 14705 },
-  { day: 'Vie', value: 16180 },
-  { day: 'Sáb', value: 13500 },
-]
-
-const initialPayments: PaymentRecord[] = [
-  { id: 1, customerId: 1, loanId: 1201, amount: 145, paymentNumber: 23, frequency: 'Diario', date: '2026-05-08', collector: 'Rafael Santos', notes: 'Cobro regular en ruta.', status: 'A tiempo', lateFeeAmount: 0 },
-  { id: 2, customerId: 2, loanId: 1202, amount: 470, paymentNumber: 18, frequency: 'Diario', date: '2026-05-08', collector: 'Rafael Santos', notes: 'Cubrió dos cuotas atrasadas.', status: 'Tarde', lateFeeAmount: 55 },
-  { id: 3, customerId: 3, loanId: 1203, amount: 145, paymentNumber: 30, frequency: 'Diario', date: '2026-05-07', collector: 'Carlos Núñez', notes: 'Cliente elegible para renovación.', status: 'A tiempo', lateFeeAmount: 0 },
-  { id: 4, customerId: 4, loanId: 1122, amount: 320, paymentNumber: 45, frequency: 'Diario', date: '2026-04-30', collector: 'Carlos Núñez', notes: 'Préstamo cerrado.', status: 'Cerrado', lateFeeAmount: 0 },
-  { id: 5, customerId: 5, loanId: 1204, amount: 175, paymentNumber: 24, frequency: 'Diario', date: '2026-05-08', collector: 'Rafael Santos', notes: 'Pago en efectivo.', status: 'A tiempo', lateFeeAmount: 0 },
-  { id: 6, customerId: 6, loanId: 1205, amount: 315, paymentNumber: 28, frequency: 'Diario', date: '2026-05-08', collector: 'Carlos Núñez', notes: 'Pago recibido en taller.', status: 'A tiempo', lateFeeAmount: 0 },
-  { id: 7, customerId: 7, loanId: 1206, amount: 145, paymentNumber: 34, frequency: 'Diario', date: '2026-05-08', collector: 'Rafael Santos', notes: 'Sin novedad.', status: 'A tiempo', lateFeeAmount: 0 },
-  { id: 8, customerId: 8, loanId: 1207, amount: 210, paymentNumber: 23, frequency: 'Diario', date: '2026-05-07', collector: 'Carlos Núñez', notes: 'Pago fuera de fecha.', status: 'Tarde', lateFeeAmount: 42 },
-  { id: 9, customerId: 10, loanId: 1209, amount: 1850, paymentNumber: 6, frequency: 'Semanal', date: '2026-05-02', collector: 'Carlos Núñez', notes: 'Pago semanal.', status: 'A tiempo', lateFeeAmount: 0 },
-]
-
-const initialExpenses: Expense[] = [
-  { id: 1, type: 'Gasolina motor', amount: 1850, date: '2026-05-05', description: 'Gasolina semana 1 de mayo', owner: 'Rafael Santos' },
-  { id: 2, type: 'Papelería', amount: 620, date: '2026-05-02', description: 'Libretas y lapiceros para cobros', owner: 'Admin' },
-  { id: 3, type: 'Gestión de cobro', amount: 1400, date: '2026-04-30', description: 'Comisión cobro cierre de abril', owner: 'Carlos Núñez' },
-]
-
-const initialLiquidationRecords: LiquidationRecord[] = [
-  {
-    month: '2026-04',
-    monthLabel: 'Abril 2026',
-    closeDateLabel: '30 abril',
-    totalCollected: 32450,
-    paymentCollected: 31980,
-    principalRecovered: 18700,
-    profitCollected: 13280,
-    lateFeesCollected: 470,
-    expensesTotal: 5330,
-    netProfit: 8420,
-    distributableProfit: 8420,
-    investor: 5052,
-    partner: 3368,
-    deficit: 0,
-    paymentCount: 27,
-    expenseCount: 5,
-    status: 'Confirmada',
-    confirmedAt: '2026-04-30',
-  },
-  {
-    month: '2026-03',
-    monthLabel: 'Marzo 2026',
-    closeDateLabel: '30 marzo',
-    totalCollected: 28750,
-    paymentCollected: 28420,
-    principalRecovered: 17120,
-    profitCollected: 11300,
-    lateFeesCollected: 330,
-    expensesTotal: 5355,
-    netProfit: 6275,
-    distributableProfit: 6275,
-    investor: 3765,
-    partner: 2510,
-    deficit: 0,
-    paymentCount: 22,
-    expenseCount: 4,
-    status: 'Confirmada',
-    confirmedAt: '2026-03-30',
-  },
-]
-
 const formatMoney = (value: number) =>
   new Intl.NumberFormat('es-DO', {
     style: 'currency',
@@ -511,6 +179,24 @@ function getCloseDateLabel(month: string) {
     day: 'numeric',
     month: 'long',
   }).format(date)
+}
+
+function getWeeklyCollectionTrend(payments: PaymentRecord[]) {
+  const labels = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+  const today = new Date(`${formatDateInput(new Date())}T12:00:00`)
+  const weekStart = new Date(today)
+  weekStart.setDate(today.getDate() - today.getDay() + 1)
+
+  return Array.from({ length: 6 }, (_, index) => {
+    const date = new Date(weekStart)
+    date.setDate(weekStart.getDate() + index)
+    const key = formatDateInput(date)
+    const value = payments
+      .filter((payment) => payment.date === key)
+      .reduce((sum, payment) => sum + payment.amount + payment.lateFeeAmount, 0)
+
+    return { day: labels[date.getDay()], value }
+  })
 }
 
 const dbCustomerStatus: Record<string, CustomerStatus> = {
@@ -569,6 +255,7 @@ function parseDisplayNumber(value: string | null | undefined, fallback: number) 
 type CollectorLookup = {
   byId: Map<string, string>
   byName: Map<string, string>
+  names: string[]
 }
 
 type AppData = {
@@ -676,6 +363,7 @@ async function loadAppData(month = getMonthKey(formatDateInput(new Date()))): Pr
   const collectorLookup: CollectorLookup = {
     byId: new Map((collectorsResult.data ?? []).map((collector: DbRow) => [dbString(collector, 'id'), dbString(collector, 'full_name')])),
     byName: new Map((collectorsResult.data ?? []).map((collector: DbRow) => [dbString(collector, 'full_name'), dbString(collector, 'id')])),
+    names: (collectorsResult.data ?? []).map((collector: DbRow) => dbString(collector, 'full_name')).filter(Boolean),
   }
 
   const customerDbToDisplay = new Map<string, number>()
@@ -808,24 +496,6 @@ function getLoanProgress(loan: Loan) {
   }
 }
 
-function applyPaymentToLoan(loan: Loan, amount: number, paymentStatus: PaymentRecord['status'] = 'A tiempo') {
-  const totalExpected = loan.paymentAmount * loan.payments
-  const paidAmount = Math.min(totalExpected, getLoanPaidAmount(loan) + amount)
-  const paidPayments = Math.min(loan.payments, Math.floor(paidAmount / loan.paymentAmount))
-  const status =
-    paidAmount >= totalExpected
-      ? ('Pagado' as LoanStatus)
-      : paymentStatus === 'Tarde'
-        ? ('Atrasado' as LoanStatus)
-        : loan.status
-
-  return {
-    ...loan,
-    paidAmount,
-    paidPayments,
-    status,
-  }
-}
 
 function calculateMonthlyLiquidation({
   month,
@@ -907,30 +577,6 @@ function calculateMonthlyLiquidation({
   }
 }
 
-function getCustomerStatusFromLoans(loans: Loan[], customer: Customer): CustomerStatus {
-  const customerLoans = loans.filter((loan) => loan.customerId === customer.id)
-
-  if (customerLoans.some((loan) => loan.status === 'Atrasado')) {
-    return 'Atrasado'
-  }
-
-  if (customerLoans.some((loan) => loan.status === 'Activo')) {
-    return 'Activo'
-  }
-
-  if (customerLoans.some((loan) => loan.status === 'Pagado')) {
-    return 'Pagado'
-  }
-
-  return customer.status
-}
-
-function syncCustomerStatuses(customers: Customer[], loans: Loan[]) {
-  return customers.map((customer) => ({
-    ...customer,
-    status: getCustomerStatusFromLoans(loans, customer),
-  }))
-}
 
 function getNextId(records: Array<{ id: number }>) {
   return Math.max(0, ...records.map((record) => record.id)) + 1
@@ -995,14 +641,6 @@ function isLoanOverdue(loan: Loan, today: string): boolean {
   return new Date(`${today}T12:00:00`) > graceEnd
 }
 
-function refreshLoanStatuses(loans: Loan[], today: string): Loan[] {
-  return loans.map((loan) => {
-    if (loan.status !== 'Activo' && loan.status !== 'Atrasado') return loan
-    const overdue = isLoanOverdue(loan, today)
-    const newStatus: LoanStatus = overdue ? 'Atrasado' : 'Activo'
-    return loan.status === newStatus ? loan : { ...loan, status: newStatus }
-  })
-}
 
 type ScheduleRow = {
   n: number
@@ -1045,16 +683,6 @@ function buildSchedule(loan: Loan, payments: PaymentRecord[], today: string): Sc
   return rows
 }
 
-void [
-  initialCustomers,
-  initialLoans,
-  initialPayments,
-  initialExpenses,
-  initialLiquidationRecords,
-  applyPaymentToLoan,
-  syncCustomerStatuses,
-  refreshLoanStatuses,
-]
 
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
@@ -1082,14 +710,14 @@ function App() {
     }),
   )
   const [searchTerm, setSearchTerm] = useState('')
-  const [collectorLookup, setCollectorLookup] = useState<CollectorLookup>({ byId: new Map(), byName: new Map() })
+  const [collectorLookup, setCollectorLookup] = useState<CollectorLookup>({ byId: new Map(), byName: new Map(), names: [] })
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [dataLoading, setDataLoading] = useState(false)
   const [appError, setAppError] = useState<string | null>(null)
   const [actionPending, setActionPending] = useState(false)
 
-  const refreshData = useCallback(async () => {
+  const refreshData = useCallback(async (): Promise<AppData | null> => {
     setDataLoading(true)
     setAppError(null)
 
@@ -1104,8 +732,10 @@ function App() {
       setCollectorLookup(data.collectors)
       setSelectedCustomer((customer) => data.customers.find((record) => record.dbId === customer?.dbId) ?? null)
       setSelectedLoan((loan) => data.loans.find((record) => record.dbId === loan?.dbId) ?? null)
+      return data
     } catch (error) {
       setAppError(error instanceof Error ? error.message : 'No se pudieron cargar los datos.')
+      return null
     } finally {
       setDataLoading(false)
     }
@@ -1179,6 +809,7 @@ function App() {
       (loan.status === 'Activo' || loan.status === 'Atrasado') &&
       getLoanPaidAmount(loan) >= loan.paymentAmount * loan.payments * 0.5,
   )
+  const collectorOptions = collectorLookup.names.length ? collectorLookup.names : ['Rafael Santos', 'Carlos Núñez']
 
   function openLoan(loan: Loan) {
     setSelectedLoan(loan)
@@ -1190,18 +821,18 @@ function App() {
     setRenewalPreview(loan)
   }
 
-  async function createLoanFromForm(loan: Loan) {
+  async function createLoanFromForm(loan: Loan): Promise<boolean> {
     const customer = customerRecords.find((record) => record.id === loan.customerId)
     if (!customer?.dbId) {
       setAppError('Selecciona un cliente válido antes de asignar el préstamo.')
-      return
+      return false
     }
 
     setActionPending(true)
     setAppError(null)
 
     try {
-      const { error } = await supabase.rpc('create_loan', {
+      const { data: createdLoanId, error } = await supabase.rpc('create_loan', {
         p_customer_id: customer.dbId,
         p_principal: loan.principal,
         p_payment_amount: loan.paymentAmount,
@@ -1216,30 +847,35 @@ function App() {
 
       if (error) throw error
 
-      await refreshData()
-      setSelectedCustomer(customer)
+      const refreshed = await refreshData()
+      const refreshedCustomer = refreshed?.customers.find((record) => record.dbId === customer.dbId) ?? customer
+      const refreshedLoan = refreshed?.loans.find((record) => record.dbId === createdLoanId) ?? null
+      setSelectedCustomer(refreshedCustomer)
+      setSelectedLoan(refreshedLoan)
       setRenewalPreview(null)
       setShowLoanForm(false)
       setLoanCustomerId(undefined)
       setActiveView('Préstamos')
+      return true
     } catch (error) {
       setAppError(error instanceof Error ? error.message : 'No se pudo crear el préstamo.')
+      return false
     } finally {
       setActionPending(false)
     }
   }
 
-  async function confirmRenewal(loan: Loan) {
+  async function confirmRenewal(loan: Loan): Promise<boolean> {
     if (!loan.dbId) {
       setAppError('No se encontró el préstamo en Supabase.')
-      return
+      return false
     }
 
     setActionPending(true)
     setAppError(null)
 
     try {
-      const { error } = await supabase.rpc('renew_loan', {
+      const { data: renewedLoanId, error } = await supabase.rpc('renew_loan', {
         p_original_loan_id: loan.dbId,
         p_new_principal: loan.principal,
         p_start_date: formatDateInput(new Date()),
@@ -1254,11 +890,19 @@ function App() {
 
       if (error) throw error
 
-      await refreshData()
+      const refreshed = await refreshData()
+      const refreshedLoan = refreshed?.loans.find((record) => record.dbId === renewedLoanId) ?? null
+      const refreshedCustomer = refreshedLoan
+        ? refreshed?.customers.find((record) => record.id === refreshedLoan.customerId) ?? null
+        : null
+      setSelectedLoan(refreshedLoan)
+      setSelectedCustomer(refreshedCustomer)
       setRenewalPreview(null)
       setActiveView('Préstamos')
+      return true
     } catch (error) {
       setAppError(error instanceof Error ? error.message : 'No se pudo renovar el préstamo.')
+      return false
     } finally {
       setActionPending(false)
     }
@@ -1269,11 +913,11 @@ function App() {
     setActiveView('Cuotas')
   }
 
-  async function registerPayment(payment: PaymentRecord) {
+  async function registerPayment(payment: PaymentRecord): Promise<boolean> {
     const loan = loanRecords.find((record) => record.id === payment.loanId)
     if (!loan?.dbId) {
       setAppError('No se encontró el préstamo en Supabase.')
-      return
+      return false
     }
 
     setActionPending(true)
@@ -1293,8 +937,10 @@ function App() {
       if (error) throw error
 
       await refreshData()
+      return true
     } catch (error) {
       setAppError(error instanceof Error ? error.message : 'No se pudo registrar el pago.')
+      return false
     } finally {
       setActionPending(false)
     }
@@ -1442,6 +1088,7 @@ function App() {
             activeLoans={activeLoans}
             eligibleRenewals={eligibleRenewals}
             customers={customerRecords}
+            collectionTrend={getWeeklyCollectionTrend(paymentRecords)}
             onOpenLoan={openLoan}
           />
         )}
@@ -1561,6 +1208,7 @@ function App() {
             payments={paymentRecords}
             searchTerm={searchTerm}
             nextId={getNextId(paymentRecords)}
+            collectorOptions={collectorOptions}
             onRegisterPayment={registerPayment}
           />
         )}
@@ -1582,8 +1230,10 @@ function App() {
                 })
                 if (error) throw error
                 await refreshData()
+                return true
               } catch (error) {
                 setAppError(error instanceof Error ? error.message : 'No se pudo registrar el gasto.')
+                return false
               } finally {
                 setActionPending(false)
               }
@@ -1591,7 +1241,7 @@ function App() {
             onEditExpense={async (expense) => {
               if (!expense.dbId) {
                 setAppError('No se encontró el gasto en Supabase.')
-                return
+                return false
               }
 
               setActionPending(true)
@@ -1607,8 +1257,10 @@ function App() {
                 }).eq('id', expense.dbId)
                 if (error) throw error
                 await refreshData()
+                return true
               } catch (error) {
                 setAppError(error instanceof Error ? error.message : 'No se pudo actualizar el gasto.')
+                return false
               } finally {
                 setActionPending(false)
               }
@@ -1633,6 +1285,7 @@ function App() {
                 setActionPending(false)
               }
             }}
+            ownerOptions={['Admin', ...collectorOptions]}
           />
         )}
         {activeView === 'Liquidación' && (
@@ -1667,6 +1320,7 @@ function App() {
           customers={customerRecords}
           defaultCustomerId={loanCustomerId}
           nextId={getNextId(loanRecords)}
+          collectorOptions={collectorOptions}
           onClose={() => {
             setShowLoanForm(false)
             setLoanCustomerId(undefined)
@@ -1736,6 +1390,7 @@ function App() {
             }
           }}
           nextId={getNextId(customerRecords)}
+          collectorOptions={collectorOptions}
         />
       )}
     </div>
@@ -1817,12 +1472,14 @@ function Dashboard({
   activeLoans,
   eligibleRenewals,
   customers,
+  collectionTrend,
   onOpenLoan,
 }: {
   totals: DashboardTotals
   activeLoans: Loan[]
   eligibleRenewals: Loan[]
   customers: Customer[]
+  collectionTrend: Array<{ day: string; value: number }>
   onOpenLoan: (loan: Loan) => void
 }) {
   return (
@@ -1892,7 +1549,7 @@ function Dashboard({
         </div>
         <div className="chart-wrap">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={collectionsTrend}>
+            <AreaChart data={collectionTrend}>
               <defs>
                 <linearGradient id="collectionGradient" x1="0" x2="0" y1="0" y2="1">
                   <stop offset="5%" stopColor="#1d4ed8" stopOpacity={0.35} />
@@ -1972,6 +1629,12 @@ function CustomersView({
     (loan) =>
       loan.customerId === selectedCustomer?.id &&
       (loan.status === 'Activo' || loan.status === 'Atrasado'),
+  )
+  const customerLoanHistory = loans.filter(
+    (loan) =>
+      loan.customerId === selectedCustomer?.id &&
+      loan.status !== 'Activo' &&
+      loan.status !== 'Atrasado',
   )
 
   return (
@@ -2093,6 +1756,13 @@ function CustomersView({
                   </tr>
                 )
               })}
+              {visibleCustomers.length === 0 && (
+                <tr>
+                  <td colSpan={7}>
+                    <EmptyState message="No hay clientes para mostrar." />
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -2147,15 +1817,14 @@ function CustomersView({
 
             <div className="sheet-section">
               <h3>Historial de prestamos</h3>
-              {loanHistory
-                .filter((loan) => loan.customerId === selectedCustomer.id)
-                .map((loan) => (
-                  <div className="history-row" key={loan.id}>
-                    <span>#{loan.id} · {loan.closed}</span>
-                    <strong>{formatMoney(loan.total)}</strong>
-                    <small>{loan.status}</small>
-                  </div>
-                ))}
+              {customerLoanHistory.map((loan) => (
+                <div className="history-row" key={loan.id}>
+                  <span>#{loan.id} · {loan.endDate}</span>
+                  <strong>{formatMoney(loan.paymentAmount * loan.payments)}</strong>
+                  <small>{loan.status}</small>
+                </div>
+              ))}
+              {customerLoanHistory.length === 0 && <EmptyState message="No hay préstamos cerrados todavía." />}
             </div>
           </aside>
         </DetailDrawer>
@@ -2312,6 +1981,13 @@ function LoansView({
                   </tr>
                 )
               })}
+              {visibleLoans.length === 0 && (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState message="No hay préstamos para mostrar." />
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -2513,9 +2189,9 @@ function LoanDetail({
                 <tr key={row.n} className={row.status === 'Próxima' ? 'schedule-row-next' : undefined}>
                   <td>{row.n}</td>
                   <td>{row.scheduledDate}</td>
-                  <td>{row.actualDate ?? '—'}</td>
+                  <td>{row.actualDate ?? '�'}</td>
                   <td>{formatMoney(row.amount)}</td>
-                  <td>{row.mora > 0 ? formatMoney(row.mora) : '—'}</td>
+                  <td>{row.mora > 0 ? formatMoney(row.mora) : '�'}</td>
                   <td>{formatMoney(row.balance)}</td>
                   <td><StatusBadge status={row.status} /></td>
                 </tr>
@@ -2531,17 +2207,19 @@ function LoanDetail({
 function CustomerForm({
   initialCustomer,
   nextId,
+  collectorOptions,
   onClose,
   onCreate,
   onUpdate,
 }: {
   initialCustomer: Customer | null
   nextId: number
+  collectorOptions: string[]
   onClose: () => void
-  onCreate: (customer: Customer) => void
-  onUpdate: (customer: Customer) => void
+  onCreate: (customer: Customer) => void | Promise<void>
+  onUpdate: (customer: Customer) => void | Promise<void>
 }) {
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const form = new FormData(event.currentTarget)
@@ -2560,9 +2238,9 @@ function CustomerForm({
     }
 
     if (initialCustomer) {
-      onUpdate(customer)
+      await onUpdate(customer)
     } else {
-      onCreate(customer)
+      await onCreate(customer)
     }
   }
 
@@ -2602,9 +2280,10 @@ function CustomerForm({
           </label>
           <label>
             Cobrador asignado
-            <select name="collector" defaultValue={initialCustomer?.collector ?? 'Rafael Santos'}>
-              <option>Rafael Santos</option>
-              <option>Carlos Núñez</option>
+            <select name="collector" defaultValue={initialCustomer?.collector ?? collectorOptions[0]}>
+              {collectorOptions.map((collector) => (
+                <option key={collector}>{collector}</option>
+              ))}
             </select>
           </label>
           <label>
@@ -2649,31 +2328,34 @@ function LoanForm({
   customers,
   defaultCustomerId,
   nextId,
+  collectorOptions,
   onClose,
   onCreate,
 }: {
   customers: Customer[]
   defaultCustomerId?: number
   nextId: number
+  collectorOptions: string[]
   onClose: () => void
-  onCreate: (loan: Loan) => void
+  onCreate: (loan: Loan) => boolean | Promise<boolean>
 }) {
   const initialCustomerId = defaultCustomerId ?? customers[0]?.id ?? 0
   const initialCustomer = customers.find((c) => c.id === initialCustomerId)
   const [selectedCustomerId, setSelectedCustomerId] = useState(initialCustomerId)
-  const [selectedCollector, setSelectedCollector] = useState(initialCustomer?.collector ?? 'Rafael Santos')
+  const [selectedCollector, setSelectedCollector] = useState(initialCustomer?.collector ?? collectorOptions[0])
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const form = new FormData(event.currentTarget)
+    const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId)
     const startDate = String(form.get('startDate') || formatDateInput(new Date()))
     const frequency = String(form.get('frequency') || 'Diario') as Frequency
     const payments = Number(form.get('payments') || 45)
     const loan: Loan = {
       id: nextId,
       customerId: selectedCustomerId,
-      customerDbId: initialCustomer?.dbId,
+      customerDbId: selectedCustomer?.dbId,
       principal: Number(form.get('principal') || 0),
       paymentAmount: Number(form.get('paymentAmount') || 0),
       frequency,
@@ -2683,14 +2365,14 @@ function LoanForm({
       startDate,
       endDate: calculateEndDate(startDate, payments, frequency),
       collector: selectedCollector,
-      collectorDbId: initialCustomer?.collectorDbId,
+      collectorDbId: selectedCustomer?.collectorDbId,
       lateFee: Number(form.get('lateFee') || 0),
       graceDays: Number(form.get('graceDays') || 0),
       notes: String(form.get('notes') || ''),
       status: 'Activo',
     }
 
-    onCreate(loan)
+    await onCreate(loan)
   }
 
   return (
@@ -2715,7 +2397,7 @@ function LoanForm({
                 const nextCustomerId = Number(e.target.value)
                 const nextCustomer = customers.find((c) => c.id === nextCustomerId)
                 setSelectedCustomerId(nextCustomerId)
-                setSelectedCollector(nextCustomer?.collector ?? 'Rafael Santos')
+                setSelectedCollector(nextCustomer?.collector ?? collectorOptions[0])
               }}
             >
               {customers.map((customer) => (
@@ -2758,8 +2440,9 @@ function LoanForm({
           <label>
             Cobrador
             <select name="collector" value={selectedCollector} onChange={(e) => setSelectedCollector(e.target.value)}>
-              <option>Rafael Santos</option>
-              <option>Carlos Núñez</option>
+              {collectorOptions.map((collector) => (
+                <option key={collector}>{collector}</option>
+              ))}
             </select>
           </label>
           <label className="full-span">
@@ -2788,6 +2471,7 @@ function PaymentsView({
   payments,
   searchTerm,
   nextId,
+  collectorOptions,
   onRegisterPayment,
 }: {
   context: PaymentContext | null
@@ -2798,7 +2482,8 @@ function PaymentsView({
   payments: PaymentRecord[]
   searchTerm: string
   nextId: number
-  onRegisterPayment: (payment: PaymentRecord) => void
+  collectorOptions: string[]
+  onRegisterPayment: (payment: PaymentRecord) => Promise<boolean>
 }) {
   const [showPaymentForm, setShowPaymentForm] = useState(Boolean(context))
   const [selectedPaymentLoan, setSelectedPaymentLoan] = useState<Loan | null>(loan)
@@ -2892,6 +2577,13 @@ function PaymentsView({
                   </tr>
                 )
               })}
+              {visiblePayments.length === 0 && (
+                <tr>
+                  <td colSpan={8}>
+                    <EmptyState message="No hay pagos registrados todavía." />
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -2946,6 +2638,13 @@ function PaymentsView({
                   </tr>
                 )
               })}
+              {activeLoans.length === 0 && (
+                <tr>
+                  <td colSpan={8}>
+                    <EmptyState message="No hay cuotas pendientes." />
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -2958,10 +2657,14 @@ function PaymentsView({
           loans={activeLoans}
           selectedLoan={selectedPaymentLoan}
           nextId={nextId}
+          collectorOptions={collectorOptions}
           onClose={() => setShowPaymentForm(false)}
-          onSubmit={(payment) => {
-            onRegisterPayment(payment)
-            setShowPaymentForm(false)
+          onSubmit={async (payment) => {
+            const saved = await onRegisterPayment(payment)
+            if (saved) {
+              setShowPaymentForm(false)
+            }
+            return saved
           }}
         />
       )}
@@ -2975,6 +2678,7 @@ function PaymentForm({
   loans,
   selectedLoan,
   nextId,
+  collectorOptions,
   onClose,
   onSubmit,
 }: {
@@ -2983,8 +2687,9 @@ function PaymentForm({
   loans: Loan[]
   selectedLoan: Loan | null
   nextId: number
+  collectorOptions: string[]
   onClose: () => void
-  onSubmit: (payment: PaymentRecord) => void
+  onSubmit: (payment: PaymentRecord) => boolean | Promise<boolean>
 }) {
   const candidateLoans = context?.customerId
     ? loans.filter((loan) => loan.customerId === context.customerId)
@@ -3002,7 +2707,7 @@ function PaymentForm({
   const [lateFeeAmount, setLateFeeAmount] = useState(
     currentLoan?.status === 'Atrasado' ? Math.round(currentLoan.paymentAmount * (currentLoan.lateFee / 100)) : 0,
   )
-  const [collectorState, setCollectorState] = useState(currentLoan?.collector ?? 'Rafael Santos')
+  const [collectorState, setCollectorState] = useState(currentLoan?.collector ?? collectorOptions[0])
   const nextDue =
     currentLoan && currentProgress && currentProgress.paidPayments < currentLoan.payments
       ? getNextDueDate(currentLoan.startDate, currentProgress.paidPayments, currentLoan.frequency)
@@ -3018,7 +2723,7 @@ function PaymentForm({
       ? Math.min(currentLoan.payments, Math.floor((currentProgress.paidAmount + effectiveAmount) / currentLoan.paymentAmount))
       : 0
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const form = new FormData(event.currentTarget)
@@ -3046,7 +2751,7 @@ function PaymentForm({
       lateFeeAmount: safeLateFeeAmount,
     }
 
-    onSubmit(payment)
+    await onSubmit(payment)
   }
 
   return (
@@ -3083,7 +2788,7 @@ function PaymentForm({
                 setAmount(nextLoan?.paymentAmount ?? 0)
                 setStatus(nextLoan?.status === 'Atrasado' ? 'Tarde' : 'A tiempo')
                 setLateFeeAmount(nextLoan?.status === 'Atrasado' ? Math.round(nextLoan.paymentAmount * (nextLoan.lateFee / 100)) : 0)
-                setCollectorState(nextLoan?.collector ?? 'Rafael Santos')
+                setCollectorState(nextLoan?.collector ?? collectorOptions[0])
               }}
             >
               {candidateLoans.map((loan) => {
@@ -3140,8 +2845,9 @@ function PaymentForm({
           <label>
             Cobrador
             <select name="collector" value={collectorState} onChange={(e) => setCollectorState(e.target.value)}>
-              <option>Rafael Santos</option>
-              <option>Carlos Núñez</option>
+              {collectorOptions.map((collector) => (
+                <option key={collector}>{collector}</option>
+              ))}
             </select>
           </label>
           <label className="full-span">
@@ -3285,6 +2991,13 @@ function LiquidationView({
                   <td><StatusBadge status={close.status} /></td>
                 </tr>
               ))}
+              {history.length === 0 && (
+                <tr>
+                  <td colSpan={10}>
+                    <EmptyState message="No hay cierres confirmados todavía." />
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -3296,15 +3009,17 @@ function LiquidationView({
 function GastosView({
   expenses,
   nextExpenseId,
+  ownerOptions,
   onAddExpense,
   onEditExpense,
   onDeleteExpense,
 }: {
   expenses: Expense[]
   nextExpenseId: number
-  onAddExpense: (expense: Expense) => void
-  onEditExpense: (expense: Expense) => void
-  onDeleteExpense: (id: number) => void
+  ownerOptions: string[]
+  onAddExpense: (expense: Expense) => Promise<boolean>
+  onEditExpense: (expense: Expense) => Promise<boolean>
+  onDeleteExpense: (id: number) => void | Promise<void>
 }) {
   const [showExpenseForm, setShowExpenseForm] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
@@ -3351,7 +3066,7 @@ function GastosView({
               {expenses.map((expense) => (
                 <tr key={expense.id}>
                   <td><strong>{expense.type}</strong></td>
-                  <td>{expense.description || '—'}</td>
+                  <td>{expense.description || '�'}</td>
                   <td>{expense.date}</td>
                   <td>{expense.owner}</td>
                   <td>{formatMoney(expense.amount)}</td>
@@ -3376,6 +3091,13 @@ function GastosView({
                   </td>
                 </tr>
               ))}
+              {expenses.length === 0 && (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState message="No hay gastos registrados para este periodo." />
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -3384,10 +3106,14 @@ function GastosView({
       {showExpenseForm && (
         <ExpenseForm
           nextId={nextExpenseId}
+          ownerOptions={ownerOptions}
           onClose={() => setShowExpenseForm(false)}
-          onCreate={(expense) => {
-            onAddExpense(expense)
-            setShowExpenseForm(false)
+          onCreate={async (expense) => {
+            const saved = await onAddExpense(expense)
+            if (saved) {
+              setShowExpenseForm(false)
+            }
+            return saved
           }}
         />
       )}
@@ -3395,10 +3121,14 @@ function GastosView({
         <ExpenseForm
           nextId={nextExpenseId}
           initialExpense={editingExpense}
+          ownerOptions={ownerOptions}
           onClose={() => setEditingExpense(null)}
-          onCreate={(expense) => {
-            onEditExpense(expense)
-            setEditingExpense(null)
+          onCreate={async (expense) => {
+            const saved = await onEditExpense(expense)
+            if (saved) {
+              setEditingExpense(null)
+            }
+            return saved
           }}
         />
       )}
@@ -3409,15 +3139,17 @@ function GastosView({
 function ExpenseForm({
   nextId,
   initialExpense,
+  ownerOptions,
   onClose,
   onCreate,
 }: {
   nextId: number
   initialExpense?: Expense
+  ownerOptions: string[]
   onClose: () => void
-  onCreate: (expense: Expense) => void
+  onCreate: (expense: Expense) => boolean | Promise<boolean>
 }) {
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     const expense: Expense = {
@@ -3428,7 +3160,7 @@ function ExpenseForm({
       description: String(form.get('description') || ''),
       owner: String(form.get('owner') || 'Admin'),
     }
-    onCreate(expense)
+    await onCreate(expense)
   }
 
   return (
@@ -3458,10 +3190,10 @@ function ExpenseForm({
           </label>
           <label>
             Registrado por
-            <select name="owner" defaultValue={initialExpense?.owner ?? 'Admin'}>
-              <option>Admin</option>
-              <option>Rafael Santos</option>
-              <option>Carlos Núñez</option>
+            <select name="owner" defaultValue={initialExpense?.owner ?? ownerOptions[0]}>
+              {ownerOptions.map((owner) => (
+                <option key={owner}>{owner}</option>
+              ))}
             </select>
           </label>
           <label className="full-span">
@@ -3566,3 +3298,4 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default App
+
