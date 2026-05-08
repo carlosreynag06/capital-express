@@ -742,6 +742,55 @@ td {
   background: #eef8ce;
 }
 
+.status.próxima {
+  color: #17547f;
+  background: #dcefff;
+}
+
+.status.pendiente {
+  color: #5a6775;
+  background: #eef0f2;
+}
+
+.schedule-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px 14px;
+  border: 1px solid #e5ece7;
+  border-radius: 8px;
+  background: #f6f7f9;
+  color: #344339;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  gap: 8px;
+}
+
+.schedule-toggle:hover {
+  background: #edf2ef;
+}
+
+.schedule-wrap {
+  margin-top: 10px;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 320px;
+  border: 1px solid #e5ece7;
+  border-radius: 8px;
+}
+
+.schedule-wrap table {
+  min-width: 540px;
+}
+
+.schedule-row-next td {
+  background: #f0f7ff;
+  font-weight: 600;
+}
+
 .progress-block {
   margin-bottom: 16px;
   padding: 15px;

@@ -65,6 +65,7 @@ type Loan = {
   collector: string
   lateFee: number
   graceDays: number
+  notes?: string
   status: LoanStatus
 }
 
@@ -72,6 +73,15 @@ type PaymentContext = {
   customerId: number
   loanId?: number
   source: 'cliente' | 'prestamo'
+}
+
+type Expense = {
+  id: number
+  type: string
+  amount: number
+  date: string
+  description: string
+  owner: string
 }
 
 type PaymentRecord = {
@@ -97,6 +107,7 @@ type DashboardTotals = {
   grossProfit: number
   expensesTotal: number
   netProfit: number
+  totalCollected: number
   investor: number
   partner: number
 }
@@ -384,10 +395,10 @@ const initialPayments: PaymentRecord[] = [
   { id: 9, customerId: 10, loanId: 1209, amount: 1850, paymentNumber: 6, frequency: 'Semanal', date: '2026-05-02', collector: 'Carlos Núñez', notes: 'Pago semanal.', status: 'A tiempo', lateFeeAmount: 0 },
 ]
 
-const expenses = [
-  { type: 'Gasolina motor', amount: 1850, date: '05 May', owner: 'Rafael' },
-  { type: 'Papelería', amount: 620, date: '02 May', owner: 'Admin' },
-  { type: 'Gestión de cobro', amount: 1400, date: '30 Abr', owner: 'Carlos' },
+const initialExpenses: Expense[] = [
+  { id: 1, type: 'Gasolina motor', amount: 1850, date: '2026-05-05', description: 'Gasolina semana 1 de mayo', owner: 'Rafael Santos' },
+  { id: 2, type: 'Papelería', amount: 620, date: '2026-05-02', description: 'Libretas y lapiceros para cobros', owner: 'Admin' },
+  { id: 3, type: 'Gestión de cobro', amount: 1400, date: '2026-04-30', description: 'Comisión cobro cierre de abril', owner: 'Carlos Núñez' },
 ]
 
 const formatMoney = (value: number) =>
@@ -510,6 +521,86 @@ function calculateEndDate(startDate: string, payments: number, frequency: Freque
   return formatDateInput(date)
 }
 
+function getNextDueDate(startDate: string, paidPayments: number, frequency: Frequency): string {
+  const date = new Date(`${startDate}T12:00:00`)
+  let counted = 0
+  const target = paidPayments + 1
+
+  while (counted < target) {
+    if (frequency === 'Diario') {
+      if (date.getDay() !== 0) counted += 1
+      if (counted < target) date.setDate(date.getDate() + 1)
+    } else {
+      counted += 1
+      if (counted < target) date.setDate(date.getDate() + (frequency === 'Semanal' ? 7 : 30))
+    }
+  }
+
+  return formatDateInput(date)
+}
+
+function isLoanOverdue(loan: Loan, today: string): boolean {
+  if (loan.status === 'Pagado' || loan.status === 'Renovado') return false
+  const progress = getLoanProgress(loan)
+  if (progress.paidPayments >= loan.payments) return false
+
+  const nextDueDateStr = getNextDueDate(loan.startDate, progress.paidPayments, loan.frequency)
+  const graceEnd = new Date(`${nextDueDateStr}T12:00:00`)
+  graceEnd.setDate(graceEnd.getDate() + loan.graceDays)
+
+  return new Date(`${today}T12:00:00`) > graceEnd
+}
+
+function refreshLoanStatuses(loans: Loan[], today: string): Loan[] {
+  return loans.map((loan) => {
+    if (loan.status !== 'Activo' && loan.status !== 'Atrasado') return loan
+    const overdue = isLoanOverdue(loan, today)
+    const newStatus: LoanStatus = overdue ? 'Atrasado' : 'Activo'
+    return loan.status === newStatus ? loan : { ...loan, status: newStatus }
+  })
+}
+
+type ScheduleRow = {
+  n: number
+  scheduledDate: string
+  actualDate: string | null
+  amount: number
+  mora: number
+  balance: number
+  status: string
+}
+
+function buildSchedule(loan: Loan, payments: PaymentRecord[], today: string): ScheduleRow[] {
+  const totalExpected = loan.paymentAmount * loan.payments
+  const overdue = isLoanOverdue(loan, today)
+  const rows: ScheduleRow[] = []
+
+  for (let n = 1; n <= loan.payments; n++) {
+    const scheduledDate = getNextDueDate(loan.startDate, n - 1, loan.frequency)
+    const record = payments.find((p) => p.loanId === loan.id && p.paymentNumber === n)
+    const balance = Math.max(0, totalExpected - n * loan.paymentAmount)
+    let status: string
+    let actualDate: string | null = null
+    let mora = 0
+
+    if (record) {
+      status = record.status
+      actualDate = record.date
+      mora = record.lateFeeAmount
+    } else if (n <= loan.paidPayments) {
+      status = 'A tiempo'
+    } else if (n === loan.paidPayments + 1) {
+      status = overdue ? 'Atrasado' : 'Próxima'
+    } else {
+      status = 'Pendiente'
+    }
+
+    rows.push({ n, scheduledDate, actualDate, amount: loan.paymentAmount, mora, balance, status })
+  }
+
+  return rows
+}
+
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -517,13 +608,18 @@ function App() {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null)
   const [showLoanForm, setShowLoanForm] = useState(false)
   const [showCustomerForm, setShowCustomerForm] = useState(false)
-  const [customerRecords, setCustomerRecords] = useState<Customer[]>(initialCustomers)
-  const [loanRecords, setLoanRecords] = useState<Loan[]>(initialLoans)
+  const [loanRecords, setLoanRecords] = useState<Loan[]>(() => refreshLoanStatuses(initialLoans, formatDateInput(new Date())))
+  const [customerRecords, setCustomerRecords] = useState<Customer[]>(() => {
+    const loans = refreshLoanStatuses(initialLoans, formatDateInput(new Date()))
+    return syncCustomerStatuses(initialCustomers, loans)
+  })
   const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>(initialPayments)
   const [renewalPreview, setRenewalPreview] = useState<Loan | null>(null)
   const [loanCustomerId, setLoanCustomerId] = useState<number | undefined>()
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [paymentContext, setPaymentContext] = useState<PaymentContext | null>(null)
+  const [expenseRecords, setExpenseRecords] = useState<Expense[]>(initialExpenses)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const totals = useMemo(() => {
     const lentOut = loanRecords
@@ -536,9 +632,10 @@ function App() {
       .filter((payment) => payment.date === formatDateInput(new Date()))
       .reduce((sum, payment) => sum + payment.amount + payment.lateFeeAmount, 0)
     const principalRecovered = loanRecords.reduce((sum, loan) => sum + Math.min(getLoanPaidAmount(loan), loan.principal), 0)
-    const expensesTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0)
+    const expensesTotal = expenseRecords.reduce((sum, expense) => sum + expense.amount, 0)
     const grossProfit = Math.max(0, collected - principalRecovered) + lateFeesCollected
     const netProfit = grossProfit - expensesTotal
+    const totalCollected = collected + lateFeesCollected
 
     return {
       capital: 500000,
@@ -549,10 +646,11 @@ function App() {
       grossProfit,
       expensesTotal,
       netProfit,
+      totalCollected,
       investor: netProfit * 0.6,
       partner: netProfit * 0.4,
     }
-  }, [loanRecords, paymentRecords])
+  }, [loanRecords, paymentRecords, expenseRecords])
 
   const activeLoans = loanRecords.filter((loan) => loan.status === 'Activo' || loan.status === 'Atrasado')
   const eligibleRenewals = loanRecords.filter(
@@ -624,9 +722,10 @@ function App() {
   function registerPayment(payment: PaymentRecord) {
     setPaymentRecords((records) => [payment, ...records])
     setLoanRecords((records) => {
-      const nextRecords = records.map((loan) =>
+      const applied = records.map((loan) =>
         loan.id === payment.loanId ? applyPaymentToLoan(loan, payment.amount, payment.status) : loan,
       )
+      const nextRecords = refreshLoanStatuses(applied, formatDateInput(new Date()))
       setCustomerRecords((customers) => syncCustomerStatuses(customers, nextRecords))
       setSelectedCustomer((customer) =>
         customer?.id === payment.customerId
@@ -695,7 +794,11 @@ function App() {
           <div className="topbar-actions">
             <div className="search-box">
               <Search size={17} />
-              <input placeholder="Buscar cliente, préstamo o cuota" />
+              <input
+                placeholder="Buscar cliente, préstamo o cuota"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
             <button
               className="primary-button"
@@ -722,6 +825,7 @@ function App() {
         {activeView === 'Clientes' && (
           <CustomersView
             customers={customerRecords}
+            searchTerm={searchTerm}
             loans={loanRecords}
             payments={paymentRecords}
             selectedCustomer={selectedCustomer}
@@ -758,6 +862,7 @@ function App() {
           <LoansView
             selectedLoan={selectedLoan}
             renewalPreview={renewalPreview}
+            payments={paymentRecords}
             onOpenLoan={openLoan}
             onCloseLoan={() => {
               setSelectedLoan(null)
@@ -794,6 +899,7 @@ function App() {
               setActiveView('Clientes')
             }}
             onGoPayments={(context) => openPaymentContext(context)}
+            searchTerm={searchTerm}
             loans={loanRecords}
             customers={customerRecords}
           />
@@ -806,11 +912,20 @@ function App() {
             customers={customerRecords}
             loans={loanRecords}
             payments={paymentRecords}
+            searchTerm={searchTerm}
             nextId={getNextId(paymentRecords)}
             onRegisterPayment={registerPayment}
           />
         )}
-        {activeView === 'Liquidación' && <LiquidationView totals={totals} />}
+        {activeView === 'Liquidación' && (
+          <LiquidationView
+            totals={totals}
+            expenses={expenseRecords}
+            nextExpenseId={getNextId(expenseRecords)}
+            onAddExpense={(expense) => setExpenseRecords((records) => [...records, expense])}
+            onDeleteExpense={(id) => setExpenseRecords((records) => records.filter((e) => e.id !== id))}
+          />
+        )}
         {activeView === 'Reportes' && <ReportsView />}
       </main>
 
@@ -970,6 +1085,7 @@ function Dashboard({
 
 function CustomersView({
   customers,
+  searchTerm,
   loans,
   payments,
   selectedCustomer,
@@ -983,6 +1099,7 @@ function CustomersView({
   onOpenLoan,
 }: {
   customers: Customer[]
+  searchTerm: string
   loans: Loan[]
   payments: PaymentRecord[]
   selectedCustomer: Customer | null
@@ -996,6 +1113,15 @@ function CustomersView({
   onOpenLoan: (loan: Loan) => void
 }) {
   const [openActions, setOpenActions] = useState<number | null>(null)
+  const term = searchTerm.toLowerCase()
+  const visibleCustomers = searchTerm
+    ? customers.filter((c) =>
+        c.name.toLowerCase().includes(term) ||
+        c.phone.includes(term) ||
+        c.cedula.includes(term) ||
+        c.address.toLowerCase().includes(term)
+      )
+    : customers
   const customerLoans = loans.filter(
     (loan) =>
       loan.customerId === selectedCustomer?.id &&
@@ -1029,7 +1155,7 @@ function CustomersView({
               </tr>
             </thead>
             <tbody>
-              {customers.map((customer) => {
+              {visibleCustomers.map((customer) => {
                 const customerActiveLoans = loans.filter(
                   (loan) =>
                     loan.customerId === customer.id &&
@@ -1188,6 +1314,8 @@ function CustomersView({
 function LoansView({
   loans,
   customers,
+  payments,
+  searchTerm,
   selectedLoan,
   renewalPreview,
   onOpenLoan,
@@ -1201,6 +1329,8 @@ function LoansView({
 }: {
   loans: Loan[]
   customers: Customer[]
+  payments: PaymentRecord[]
+  searchTerm: string
   selectedLoan: Loan | null
   renewalPreview: Loan | null
   onOpenLoan: (loan: Loan) => void
@@ -1213,6 +1343,18 @@ function LoansView({
   onGoPayments: (context: PaymentContext) => void
 }) {
   const [openActions, setOpenActions] = useState<number | null>(null)
+  const term = searchTerm.toLowerCase()
+  const visibleLoans = searchTerm
+    ? loans.filter((loan) => {
+        const customer = getCustomer(customers, loan.customerId)
+        return (
+          String(loan.id).includes(term) ||
+          customer?.name.toLowerCase().includes(term) ||
+          loan.status.toLowerCase().includes(term) ||
+          loan.collector.toLowerCase().includes(term)
+        )
+      })
+    : loans
 
   return (
     <section className="loans-layout">
@@ -1240,7 +1382,7 @@ function LoansView({
               </tr>
             </thead>
             <tbody>
-              {loans.map((loan) => {
+              {visibleLoans.map((loan) => {
                 const customer = getCustomer(customers, loan.customerId)
                 if (!customer) {
                   return null
@@ -1320,6 +1462,7 @@ function LoansView({
           <LoanDetail
             loan={selectedLoan}
             customer={getCustomer(customers, selectedLoan.customerId)}
+            payments={payments}
             renewalPreview={renewalPreview}
             onClose={onCloseLoan}
             onRenew={() => onRenew(selectedLoan)}
@@ -1394,6 +1537,7 @@ function DetailDrawer({
 function LoanDetail({
   loan,
   customer,
+  payments,
   renewalPreview,
   onClose,
   onRenew,
@@ -1401,6 +1545,7 @@ function LoanDetail({
 }: {
   loan: Loan
   customer: Customer | null
+  payments: PaymentRecord[]
   renewalPreview: Loan | null
   onClose: () => void
   onRenew: () => void
@@ -1408,6 +1553,15 @@ function LoanDetail({
 }) {
   const renewal = getRenewalMath(loan)
   const progress = getLoanProgress(loan)
+  const today = formatDateInput(new Date())
+  const [showSchedule, setShowSchedule] = useState(false)
+  const schedule = buildSchedule(loan, payments, today)
+  const nextDue =
+    loan.status !== 'Pagado' && loan.status !== 'Renovado' && progress.paidPayments < loan.payments
+      ? getNextDueDate(loan.startDate, progress.paidPayments, loan.frequency)
+      : null
+  const overdue = nextDue !== null && isLoanOverdue(loan, today)
+  const moraPerPayment = Math.round(loan.paymentAmount * (loan.lateFee / 100))
 
   return (
     <aside className="detail-sheet loan-detail">
@@ -1442,8 +1596,11 @@ function LoanDetail({
         <Info label="Cuotas cubiertas" value={`${progress.paidPayments}/${loan.payments}`} />
         <Info label="Inicio" value={loan.startDate} />
         <Info label="Final calculado" value={loan.endDate} />
+        {nextDue && <Info label="Próxima cuota vence" value={nextDue} />}
+        {overdue && <Info label="Mora por cuota" value={formatMoney(moraPerPayment)} />}
         <Info label="Mora" value={`${loan.lateFee}% después de ${loan.graceDays} días`} />
         <Info label="Cobrador" value={loan.collector} />
+        {loan.notes && <Info label="Notas" value={loan.notes} />}
       </div>
 
       <button className="renew-button" onClick={onRenew}>
@@ -1466,6 +1623,45 @@ function LoanDetail({
             <CheckCircle2 size={18} />
             Confirmar renovación
           </button>
+        </div>
+      )}
+
+      <button className="schedule-toggle" onClick={() => setShowSchedule(!showSchedule)}>
+        <span>
+          <CalendarDays size={15} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+          Cronograma de cuotas ({loan.payments} cuotas)
+        </span>
+        <ChevronRight size={15} style={{ transform: showSchedule ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
+      </button>
+
+      {showSchedule && (
+        <div className="schedule-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Fecha prog.</th>
+                <th>Cobrado</th>
+                <th>Cuota</th>
+                <th>Mora</th>
+                <th>Saldo</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {schedule.map((row) => (
+                <tr key={row.n} className={row.status === 'Próxima' ? 'schedule-row-next' : undefined}>
+                  <td>{row.n}</td>
+                  <td>{row.scheduledDate}</td>
+                  <td>{row.actualDate ?? '—'}</td>
+                  <td>{formatMoney(row.amount)}</td>
+                  <td>{row.mora > 0 ? formatMoney(row.mora) : '—'}</td>
+                  <td>{formatMoney(row.balance)}</td>
+                  <td><StatusBadge status={row.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </aside>
@@ -1600,6 +1796,11 @@ function LoanForm({
   onClose: () => void
   onCreate: (loan: Loan) => void
 }) {
+  const initialCustomerId = defaultCustomerId ?? customers[0]?.id ?? 0
+  const initialCustomer = customers.find((c) => c.id === initialCustomerId)
+  const [selectedCustomerId, setSelectedCustomerId] = useState(initialCustomerId)
+  const [selectedCollector, setSelectedCollector] = useState(initialCustomer?.collector ?? 'Rafael Santos')
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -1609,7 +1810,7 @@ function LoanForm({
     const payments = Number(form.get('payments') || 45)
     const loan: Loan = {
       id: nextId,
-      customerId: Number(form.get('customerId') || customers[0]?.id),
+      customerId: selectedCustomerId,
       principal: Number(form.get('principal') || 0),
       paymentAmount: Number(form.get('paymentAmount') || 0),
       frequency,
@@ -1618,9 +1819,10 @@ function LoanForm({
       paidAmount: 0,
       startDate,
       endDate: calculateEndDate(startDate, payments, frequency),
-      collector: String(form.get('collector') || ''),
+      collector: selectedCollector,
       lateFee: Number(form.get('lateFee') || 0),
       graceDays: Number(form.get('graceDays') || 0),
+      notes: String(form.get('notes') || ''),
       status: 'Activo',
     }
 
@@ -1642,7 +1844,16 @@ function LoanForm({
         <div className="form-grid">
           <label>
             Cliente
-            <select name="customerId" defaultValue={defaultCustomerId ?? customers[0]?.id}>
+            <select
+              name="customerId"
+              value={selectedCustomerId}
+              onChange={(e) => {
+                const nextCustomerId = Number(e.target.value)
+                const nextCustomer = customers.find((c) => c.id === nextCustomerId)
+                setSelectedCustomerId(nextCustomerId)
+                setSelectedCollector(nextCustomer?.collector ?? 'Rafael Santos')
+              }}
+            >
               {customers.map((customer) => (
                 <option value={customer.id} key={customer.id}>{customer.name}</option>
               ))}
@@ -1650,7 +1861,7 @@ function LoanForm({
           </label>
           <label>
             Principal
-            <input name="principal" defaultValue="5000" />
+            <input name="principal" type="number" min="0" defaultValue="5000" />
           </label>
           <label>
             Fecha de inicio
@@ -1666,30 +1877,30 @@ function LoanForm({
           </label>
           <label>
             Monto de cuota
-            <input name="paymentAmount" defaultValue="145" />
+            <input name="paymentAmount" type="number" min="0" defaultValue="145" />
           </label>
           <label>
             Número de cuotas
-            <input name="payments" defaultValue="45" />
+            <input name="payments" type="number" min="1" defaultValue="45" />
           </label>
           <label>
             Mora %
-            <input name="lateFee" defaultValue="4" />
+            <input name="lateFee" type="number" min="0" defaultValue="4" />
           </label>
           <label>
             Gracia en días
-            <input name="graceDays" defaultValue="3" />
+            <input name="graceDays" type="number" min="0" defaultValue="3" />
           </label>
           <label>
             Cobrador
-            <select name="collector" defaultValue="Rafael Santos">
+            <select name="collector" value={selectedCollector} onChange={(e) => setSelectedCollector(e.target.value)}>
               <option>Rafael Santos</option>
               <option>Carlos Núñez</option>
             </select>
           </label>
           <label className="full-span">
             Notas
-            <textarea defaultValue="Ruta asignada para cobro diario de lunes a sábado." />
+            <textarea name="notes" placeholder="Notas del préstamo, ruta, condiciones o acuerdos especiales" />
           </label>
         </div>
         <div className="modal-actions">
@@ -1711,6 +1922,7 @@ function PaymentsView({
   customers,
   loans,
   payments,
+  searchTerm,
   nextId,
   onRegisterPayment,
 }: {
@@ -1720,12 +1932,25 @@ function PaymentsView({
   customers: Customer[]
   loans: Loan[]
   payments: PaymentRecord[]
+  searchTerm: string
   nextId: number
   onRegisterPayment: (payment: PaymentRecord) => void
 }) {
   const [showPaymentForm, setShowPaymentForm] = useState(Boolean(context))
   const [selectedPaymentLoan, setSelectedPaymentLoan] = useState<Loan | null>(loan)
   const activeLoans = loans.filter((loanRecord) => loanRecord.status === 'Activo' || loanRecord.status === 'Atrasado')
+  const term = searchTerm.toLowerCase()
+  const visiblePayments = searchTerm
+    ? payments.filter((p) => {
+        const c = getCustomer(customers, p.customerId)
+        return (
+          c?.name.toLowerCase().includes(term) ||
+          String(p.loanId).includes(term) ||
+          p.collector.toLowerCase().includes(term) ||
+          p.date.includes(term)
+        )
+      })
+    : payments
   const collectedToday = payments
     .filter((payment) => payment.date === formatDateInput(new Date()))
     .reduce((sum, payment) => sum + payment.amount + payment.lateFeeAmount, 0)
@@ -1786,7 +2011,7 @@ function PaymentsView({
               </tr>
             </thead>
             <tbody>
-              {payments.map((payment) => {
+              {visiblePayments.map((payment) => {
                 const paymentCustomer = getCustomer(customers, payment.customerId)
                 const paymentLoan = loans.find((loanRecord) => loanRecord.id === payment.loanId)
 
@@ -1895,6 +2120,11 @@ function PaymentForm({
   const [lateFeeAmount, setLateFeeAmount] = useState(
     currentLoan?.status === 'Atrasado' ? Math.round(currentLoan.paymentAmount * (currentLoan.lateFee / 100)) : 0,
   )
+  const [collectorState, setCollectorState] = useState(currentLoan?.collector ?? 'Rafael Santos')
+  const nextDue =
+    currentLoan && currentProgress && currentProgress.paidPayments < currentLoan.payments
+      ? getNextDueDate(currentLoan.startDate, currentProgress.paidPayments, currentLoan.frequency)
+      : null
   const safeAmount = Number.isFinite(amount) ? Math.max(0, amount) : 0
   const safeLateFeeAmount = Number.isFinite(lateFeeAmount) ? Math.max(0, lateFeeAmount) : 0
   const effectiveAmount =
@@ -1952,7 +2182,7 @@ function PaymentForm({
               <span>Aplicando a</span>
               <strong>{defaultCustomer.name} · Préstamo #{currentLoan.id}</strong>
             </div>
-            <small>{currentLoan.frequency}</small>
+            <small>{currentLoan.frequency}{nextDue ? ` · vence ${nextDue}` : ''}</small>
           </div>
         )}
         <div className="form-grid">
@@ -1968,6 +2198,7 @@ function PaymentForm({
                 setAmount(nextLoan?.paymentAmount ?? 0)
                 setStatus(nextLoan?.status === 'Atrasado' ? 'Tarde' : 'A tiempo')
                 setLateFeeAmount(nextLoan?.status === 'Atrasado' ? Math.round(nextLoan.paymentAmount * (nextLoan.lateFee / 100)) : 0)
+                setCollectorState(nextLoan?.collector ?? 'Rafael Santos')
               }}
             >
               {candidateLoans.map((loan) => {
@@ -2007,6 +2238,8 @@ function PaymentForm({
                 setStatus(nextStatus)
                 if (nextStatus === 'Cerrado' && currentProgress) {
                   setAmount(currentProgress.remaining)
+                } else if (status === 'Cerrado') {
+                  setAmount(currentLoan?.paymentAmount ?? 0)
                 }
               }}
             >
@@ -2021,7 +2254,7 @@ function PaymentForm({
           </label>
           <label>
             Cobrador
-            <select name="collector" defaultValue={currentLoan?.collector ?? 'Rafael Santos'}>
+            <select name="collector" value={collectorState} onChange={(e) => setCollectorState(e.target.value)}>
               <option>Rafael Santos</option>
               <option>Carlos Núñez</option>
             </select>
@@ -2043,7 +2276,21 @@ function PaymentForm({
   )
 }
 
-function LiquidationView({ totals }: { totals: DashboardTotals }) {
+function LiquidationView({
+  totals,
+  expenses,
+  nextExpenseId,
+  onAddExpense,
+  onDeleteExpense,
+}: {
+  totals: DashboardTotals
+  expenses: Expense[]
+  nextExpenseId: number
+  onAddExpense: (expense: Expense) => void
+  onDeleteExpense: (id: number) => void
+}) {
+  const [showExpenseForm, setShowExpenseForm] = useState(false)
+
   return (
     <section className="liquidation-layout">
       <div className="panel">
@@ -2055,7 +2302,7 @@ function LiquidationView({ totals }: { totals: DashboardTotals }) {
           <Coins size={21} />
         </div>
         <div className="liquidation-lines">
-          <Calc label="Total cobrado" value={formatMoney(43520)} />
+          <Calc label="Total cobrado" value={formatMoney(totals.totalCollected)} />
           <Calc label="Principal recuperado" value={formatMoney(totals.principalRecovered)} />
           <Calc label="Ganancia sobre principal" value={formatMoney(totals.grossProfit)} />
           <Calc label="Gastos operativos" value={`-${formatMoney(totals.expensesTotal)}`} />
@@ -2075,21 +2322,123 @@ function LiquidationView({ totals }: { totals: DashboardTotals }) {
             <p className="eyebrow">Gastos</p>
             <h2>Operación del mes</h2>
           </div>
-          <ReceiptText size={20} />
+          <button className="primary-button" onClick={() => setShowExpenseForm(true)}>
+            <Plus size={17} />
+            Nuevo gasto
+          </button>
         </div>
         <div className="stack-list">
           {expenses.map((expense) => (
-            <div className="list-row" key={expense.type}>
+            <div className="list-row" key={expense.id}>
               <div>
                 <strong>{expense.type}</strong>
                 <span>{expense.date} · {expense.owner}</span>
+                {expense.description && (
+                  <span style={{ display: 'block', marginTop: '2px', fontSize: '12px', color: '#64756f' }}>
+                    {expense.description}
+                  </span>
+                )}
               </div>
-              <strong>{formatMoney(expense.amount)}</strong>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <strong>{formatMoney(expense.amount)}</strong>
+                <button
+                  className="icon-button"
+                  style={{ color: '#b42318', background: '#fff1f0' }}
+                  onClick={() => onDeleteExpense(expense.id)}
+                  aria-label="Eliminar gasto"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
       </div>
+
+      {showExpenseForm && (
+        <ExpenseForm
+          nextId={nextExpenseId}
+          onClose={() => setShowExpenseForm(false)}
+          onCreate={(expense) => {
+            onAddExpense(expense)
+            setShowExpenseForm(false)
+          }}
+        />
+      )}
     </section>
+  )
+}
+
+function ExpenseForm({
+  nextId,
+  onClose,
+  onCreate,
+}: {
+  nextId: number
+  onClose: () => void
+  onCreate: (expense: Expense) => void
+}) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const expense: Expense = {
+      id: nextId,
+      type: String(form.get('type') || ''),
+      amount: Number(form.get('amount') || 0),
+      date: String(form.get('date') || formatDateInput(new Date())),
+      description: String(form.get('description') || ''),
+      owner: String(form.get('owner') || 'Admin'),
+    }
+    onCreate(expense)
+  }
+
+  return (
+    <div className="modal-layer">
+      <form className="modal-card" onSubmit={handleSubmit}>
+        <div className="modal-header">
+          <div>
+            <p className="eyebrow">Gastos operativos</p>
+            <h2>Registrar gasto</h2>
+          </div>
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar formulario">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="form-grid">
+          <label className="wide-span">
+            Tipo de gasto
+            <input name="type" placeholder="Ej. Gasolina motor, Papelería" required />
+          </label>
+          <label>
+            Monto
+            <input name="amount" type="number" min="0" defaultValue="0" required />
+          </label>
+          <label>
+            Fecha
+            <input name="date" type="date" defaultValue={formatDateInput(new Date())} />
+          </label>
+          <label>
+            Registrado por
+            <select name="owner" defaultValue="Admin">
+              <option>Admin</option>
+              <option>Rafael Santos</option>
+              <option>Carlos Núñez</option>
+            </select>
+          </label>
+          <label className="full-span">
+            Descripción
+            <textarea name="description" placeholder="Descripción detallada del gasto" />
+          </label>
+        </div>
+        <div className="modal-actions">
+          <button className="secondary-button" type="button" onClick={onClose}>Cancelar</button>
+          <button className="primary-button" type="submit">
+            <CheckCircle2 size={18} />
+            Guardar gasto
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }
 
