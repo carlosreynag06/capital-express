@@ -84,7 +84,7 @@ nav {
 .nav-item:hover,
 .nav-item.active {
   color: #ffffff;
-  background: linear-gradient(135deg, rgba(29, 78, 216, 0.95) 0%, rgba(96, 165, 250, 0.76) 100%);
+  background: rgba(96, 165, 250, 0.16);
   box-shadow: inset 3px 0 0 #60a5fa;
 }
 
