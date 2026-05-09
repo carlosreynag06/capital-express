@@ -1438,8 +1438,8 @@ textarea {
 .dark-theme {
   background: #0b1120;
   color: #e5edf7;
-  --dark-cta: #d4a017;
-  --dark-cta-hover: #c28d0c;
+  --dark-cta: #a97608;
+  --dark-cta-hover: #8f6207;
 }
 
 .dark-theme .sidebar {
