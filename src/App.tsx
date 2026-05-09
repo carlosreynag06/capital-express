@@ -57,6 +57,17 @@ type Customer = {
   references: string
 }
 
+type Collector = {
+  id: number
+  dbId?: string
+  name: string
+  phone: string
+  address: string
+  cedula: string
+  notes: string
+  active: boolean
+}
+
 type Loan = {
   id: number
   dbId?: string
@@ -267,6 +278,7 @@ type AppData = {
   liquidations: LiquidationRecord[]
   monthlyLiquidation: MonthlyLiquidation
   collectors: CollectorLookup
+  collectorRecords: Collector[]
 }
 
 type DbRow = Record<string, unknown>
@@ -366,6 +378,16 @@ async function loadAppData(month = getMonthKey(formatDateInput(new Date()))): Pr
     byName: new Map((collectorsResult.data ?? []).map((collector: DbRow) => [dbString(collector, 'full_name'), dbString(collector, 'id')])),
     names: (collectorsResult.data ?? []).map((collector: DbRow) => dbString(collector, 'full_name')).filter(Boolean),
   }
+  const collectorRecords = (collectorsResult.data ?? []).map((collector: DbRow, index) => ({
+    id: index + 1,
+    dbId: dbString(collector, 'id'),
+    name: dbString(collector, 'full_name'),
+    phone: dbString(collector, 'phone'),
+    address: dbString(collector, 'address'),
+    cedula: dbString(collector, 'identification_number'),
+    notes: dbString(collector, 'notes'),
+    active: collector.active !== false,
+  } satisfies Collector))
 
   const customerDbToDisplay = new Map<string, number>()
   const customers = (customersResult.data ?? []).map((customer: DbRow, index) => {
@@ -458,6 +480,7 @@ async function loadAppData(month = getMonthKey(formatDateInput(new Date()))): Pr
     liquidations: (liquidationsResult.data ?? []).map(mapLiquidation),
     monthlyLiquidation: mapMonthlyLiquidation((monthlyLiquidationResult.data ?? [])[0] ?? {}, month),
     collectors: collectorLookup,
+    collectorRecords,
   }
 }
 
@@ -692,12 +715,15 @@ function App() {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null)
   const [showLoanForm, setShowLoanForm] = useState(false)
   const [showCustomerForm, setShowCustomerForm] = useState(false)
+  const [showCollectorForm, setShowCollectorForm] = useState(false)
   const [loanRecords, setLoanRecords] = useState<Loan[]>([])
   const [customerRecords, setCustomerRecords] = useState<Customer[]>([])
+  const [collectorRecords, setCollectorRecords] = useState<Collector[]>([])
   const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([])
   const [renewalPreview, setRenewalPreview] = useState<Loan | null>(null)
   const [loanCustomerId, setLoanCustomerId] = useState<number | undefined>()
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [editingCollector, setEditingCollector] = useState<Collector | null>(null)
   const [paymentContext, setPaymentContext] = useState<PaymentContext | null>(null)
   const [expenseRecords, setExpenseRecords] = useState<Expense[]>([])
   const [liquidationRecords, setLiquidationRecords] = useState<LiquidationRecord[]>([])
@@ -725,6 +751,7 @@ function App() {
     try {
       const data = await loadAppData(liquidationMonth)
       setCustomerRecords(data.customers)
+      setCollectorRecords(data.collectorRecords)
       setLoanRecords(data.loans)
       setPaymentRecords(data.payments)
       setExpenseRecords(data.expenses)
@@ -760,6 +787,7 @@ function App() {
         void refreshData()
       } else {
         setCustomerRecords([])
+        setCollectorRecords([])
         setLoanRecords([])
         setPaymentRecords([])
         setExpenseRecords([])
@@ -1000,7 +1028,7 @@ function App() {
             onClick={() => { setActiveView('Cuotas'); setMenuOpen(false) }}
           >
             <ReceiptText size={18} />
-            Cuotas
+            Pagos
           </button>
 
           <p className="nav-section">Finanzas</p>
@@ -1197,6 +1225,31 @@ function App() {
             searchTerm={searchTerm}
             loans={loanRecords}
             customers={customerRecords}
+            collectors={collectorRecords}
+            onNewCollector={() => setShowCollectorForm(true)}
+            onEditCollector={(collector) => {
+              setEditingCollector(collector)
+              setShowCollectorForm(true)
+            }}
+            onDeleteCollector={async (collector) => {
+              if (!collector.dbId) {
+                setAppError('No se encontró el cobrador en Supabase.')
+                return
+              }
+
+              setActionPending(true)
+              setAppError(null)
+
+              try {
+                const { error } = await supabase.from('collectors').delete().eq('id', collector.dbId)
+                if (error) throw error
+                await refreshData()
+              } catch (error) {
+                setAppError(error instanceof Error ? error.message : 'No se pudo eliminar el cobrador.')
+              } finally {
+                setActionPending(false)
+              }
+            }}
           />
         )}
         {activeView === 'Cuotas' && (
@@ -1348,7 +1401,6 @@ function App() {
                 identification_number: customer.cedula || null,
                 notes: customer.notes || null,
                 references_text: customer.references || null,
-                assigned_collector_id: collectorLookup.byName.get(customer.collector) ?? null,
                 status: toDbCustomerStatus[customer.status],
               })
               if (error) throw error
@@ -1377,7 +1429,6 @@ function App() {
                 identification_number: customer.cedula || null,
                 notes: customer.notes || null,
                 references_text: customer.references || null,
-                assigned_collector_id: collectorLookup.byName.get(customer.collector) ?? null,
                 status: toDbCustomerStatus[customer.status],
               }).eq('id', customer.dbId)
               if (error) throw error
@@ -1391,7 +1442,66 @@ function App() {
             }
           }}
           nextId={getNextId(customerRecords)}
-          collectorOptions={collectorOptions}
+        />
+      )}
+      {showCollectorForm && (
+        <CollectorForm
+          initialCollector={editingCollector}
+          nextId={getNextId(collectorRecords)}
+          onClose={() => {
+            setShowCollectorForm(false)
+            setEditingCollector(null)
+          }}
+          onCreate={async (collector) => {
+            setActionPending(true)
+            setAppError(null)
+
+            try {
+              const { error } = await supabase.from('collectors').insert({
+                full_name: collector.name,
+                phone: collector.phone || null,
+                address: collector.address || null,
+                identification_number: collector.cedula || null,
+                notes: collector.notes || null,
+                active: collector.active,
+              })
+              if (error) throw error
+              await refreshData()
+              setShowCollectorForm(false)
+            } catch (error) {
+              setAppError(error instanceof Error ? error.message : 'No se pudo crear el cobrador.')
+            } finally {
+              setActionPending(false)
+            }
+          }}
+          onUpdate={async (collector) => {
+            if (!collector.dbId) {
+              setAppError('No se encontró el cobrador en Supabase.')
+              return
+            }
+
+            setActionPending(true)
+            setAppError(null)
+
+            try {
+              const { error } = await supabase.from('collectors').update({
+                full_name: collector.name,
+                phone: collector.phone || null,
+                address: collector.address || null,
+                identification_number: collector.cedula || null,
+                notes: collector.notes || null,
+                active: collector.active,
+              }).eq('id', collector.dbId)
+              if (error) throw error
+              await refreshData()
+              setEditingCollector(null)
+              setShowCollectorForm(false)
+            } catch (error) {
+              setAppError(error instanceof Error ? error.message : 'No se pudo actualizar el cobrador.')
+            } finally {
+              setActionPending(false)
+            }
+          }}
         />
       )}
     </div>
@@ -1884,6 +1994,7 @@ function CustomersView({
 function LoansView({
   loans,
   customers,
+  collectors,
   payments,
   searchTerm,
   selectedLoan,
@@ -1896,9 +2007,13 @@ function LoansView({
   onPayOffLoan,
   onOpenCustomer,
   onGoPayments,
+  onNewCollector,
+  onEditCollector,
+  onDeleteCollector,
 }: {
   loans: Loan[]
   customers: Customer[]
+  collectors: Collector[]
   payments: PaymentRecord[]
   searchTerm: string
   selectedLoan: Loan | null
@@ -1911,9 +2026,15 @@ function LoansView({
   onPayOffLoan: (loan: Loan) => void
   onOpenCustomer: (customer: Customer) => void
   onGoPayments: (context: PaymentContext) => void
+  onNewCollector: () => void
+  onEditCollector: (collector: Collector) => void
+  onDeleteCollector: (collector: Collector) => void
 }) {
   const [openActions, setOpenActions] = useState<number | null>(null)
+  const [openCollectorActions, setOpenCollectorActions] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<'prestamos' | 'cobradores'>('prestamos')
   const [page, setPage] = useState(1)
+  const [collectorsPage, setCollectorsPage] = useState(1)
   const term = searchTerm.toLowerCase()
   const visibleLoans = searchTerm
     ? loans.filter((loan) => {
@@ -1926,10 +2047,21 @@ function LoansView({
         )
       })
     : loans
+  const visibleCollectors = searchTerm
+    ? collectors.filter((collector) =>
+        collector.name.toLowerCase().includes(term) ||
+        collector.phone.includes(term) ||
+        collector.cedula.includes(term) ||
+        collector.address.toLowerCase().includes(term)
+      )
+    : collectors
   const perPage = 10
   const loansTotalPages = Math.max(1, Math.ceil(visibleLoans.length / perPage))
   const safePage = Math.min(page, loansTotalPages)
   const pageLoans = visibleLoans.slice((safePage - 1) * perPage, safePage * perPage)
+  const collectorsTotalPages = Math.max(1, Math.ceil(visibleCollectors.length / perPage))
+  const safeCollectorsPage = Math.min(collectorsPage, collectorsTotalPages)
+  const pageCollectors = visibleCollectors.slice((safeCollectorsPage - 1) * perPage, safeCollectorsPage * perPage)
 
   return (
     <section className="loans-layout">
@@ -1940,6 +2072,26 @@ function LoansView({
         text="Asignación, progreso, saldos, renovaciones y cierres de cada préstamo."
       />
 
+      <div className="view-tabs" role="tablist" aria-label="Secciones de préstamos">
+        <button
+          className={activeTab === 'prestamos' ? 'active' : undefined}
+          onClick={() => setActiveTab('prestamos')}
+          role="tab"
+          aria-selected={activeTab === 'prestamos'}
+        >
+          Préstamos
+        </button>
+        <button
+          className={activeTab === 'cobradores' ? 'active' : undefined}
+          onClick={() => setActiveTab('cobradores')}
+          role="tab"
+          aria-selected={activeTab === 'cobradores'}
+        >
+          Cobradores
+        </button>
+      </div>
+
+      {activeTab === 'prestamos' && (
       <div className="panel table-panel">
         <div className="panel-header">
           <div>
@@ -2046,6 +2198,93 @@ function LoansView({
         </div>
         <Pagination total={visibleLoans.length} page={safePage} perPage={perPage} onPageChange={setPage} />
       </div>
+      )}
+
+      {activeTab === 'cobradores' && (
+        <div className="panel table-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Equipo de cobro</p>
+              <h2>Cobradores</h2>
+            </div>
+            <button className="primary-button" onClick={onNewCollector}>
+              <Plus size={17} />
+              Nuevo cobrador
+            </button>
+          </div>
+          <div className="responsive-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cobrador</th>
+                  <th>Teléfono</th>
+                  <th>Cédula</th>
+                  <th>Dirección</th>
+                  <th>Estado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageCollectors.map((collector) => (
+                  <tr key={collector.id}>
+                    <td>
+                      <div className="table-person">
+                        <div className="avatar soft-avatar">{collector.name.slice(0, 2)}</div>
+                        <div>
+                          <strong>{collector.name}</strong>
+                          <span>{collector.notes || 'Ruta de cobro'}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{collector.phone || '-'}</td>
+                    <td>{collector.cedula || '-'}</td>
+                    <td>{collector.address || '-'}</td>
+                    <td><StatusBadge status={collector.active ? 'Activo' : 'Inactivo'} /></td>
+                    <td>
+                      <QuickActions
+                        isOpen={openCollectorActions === collector.id}
+                        label="Acciones del cobrador"
+                        onRequestClose={() => setOpenCollectorActions(null)}
+                        onToggle={(event) => {
+                          event.stopPropagation()
+                          setOpenCollectorActions(openCollectorActions === collector.id ? null : collector.id)
+                        }}
+                        actions={[
+                          {
+                            label: 'Editar cobrador',
+                            icon: Pencil,
+                            onSelect: () => {
+                              onEditCollector(collector)
+                              setOpenCollectorActions(null)
+                            },
+                          },
+                          {
+                            label: 'Eliminar cobrador',
+                            icon: Trash2,
+                            tone: 'danger',
+                            onSelect: () => {
+                              onDeleteCollector(collector)
+                              setOpenCollectorActions(null)
+                            },
+                          },
+                        ]}
+                      />
+                    </td>
+                  </tr>
+                ))}
+                {visibleCollectors.length === 0 && (
+                  <tr>
+                    <td colSpan={6}>
+                      <EmptyState message="No hay cobradores para mostrar." />
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <Pagination total={visibleCollectors.length} page={safeCollectorsPage} perPage={perPage} onPageChange={setCollectorsPage} />
+        </div>
+      )}
 
       {selectedLoan && (
         <DetailDrawer onClose={onCloseLoan} label="Cerrar detalle del préstamo">
@@ -2261,14 +2500,12 @@ function LoanDetail({
 function CustomerForm({
   initialCustomer,
   nextId,
-  collectorOptions,
   onClose,
   onCreate,
   onUpdate,
 }: {
   initialCustomer: Customer | null
   nextId: number
-  collectorOptions: string[]
   onClose: () => void
   onCreate: (customer: Customer) => void | Promise<void>
   onUpdate: (customer: Customer) => void | Promise<void>
@@ -2284,7 +2521,7 @@ function CustomerForm({
       phone: String(form.get('phone') || ''),
       address: String(form.get('address') || ''),
       cedula: String(form.get('cedula') || ''),
-      collector: String(form.get('collector') || ''),
+      collector: initialCustomer?.collector ?? 'Sin cobrador',
       collectorDbId: initialCustomer?.collectorDbId,
       status: String(form.get('status') || 'Activo') as CustomerStatus,
       references: String(form.get('references') || ''),
@@ -2333,14 +2570,6 @@ function CustomerForm({
             />
           </label>
           <label>
-            Cobrador asignado
-            <select name="collector" defaultValue={initialCustomer?.collector ?? collectorOptions[0]}>
-              {collectorOptions.map((collector) => (
-                <option key={collector}>{collector}</option>
-              ))}
-            </select>
-          </label>
-          <label>
             Estado
             <select name="status" defaultValue={initialCustomer?.status ?? 'Activo'}>
               <option>Activo</option>
@@ -2378,6 +2607,100 @@ function CustomerForm({
   )
 }
 
+function CollectorForm({
+  initialCollector,
+  nextId,
+  onClose,
+  onCreate,
+  onUpdate,
+}: {
+  initialCollector: Collector | null
+  nextId: number
+  onClose: () => void
+  onCreate: (collector: Collector) => void | Promise<void>
+  onUpdate: (collector: Collector) => void | Promise<void>
+}) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const form = new FormData(event.currentTarget)
+    const collector: Collector = {
+      id: initialCollector?.id ?? nextId,
+      dbId: initialCollector?.dbId,
+      name: String(form.get('name') || ''),
+      phone: String(form.get('phone') || ''),
+      address: String(form.get('address') || ''),
+      cedula: String(form.get('cedula') || ''),
+      notes: String(form.get('notes') || ''),
+      active: form.get('active') === 'on',
+    }
+
+    if (initialCollector) {
+      await onUpdate(collector)
+    } else {
+      await onCreate(collector)
+    }
+  }
+
+  return (
+    <div className="modal-layer">
+      <form className="modal-card" onSubmit={handleSubmit}>
+        <div className="modal-header">
+          <div>
+            <p className="eyebrow">Equipo de cobro</p>
+            <h2>{initialCollector ? 'Editar cobrador' : 'Nuevo cobrador'}</h2>
+          </div>
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar formulario">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="form-grid">
+          <label>
+            Nombre completo
+            <input name="name" defaultValue={initialCollector?.name} placeholder="Ej. Rafael Santos" required />
+          </label>
+          <label>
+            Teléfono
+            <input name="phone" defaultValue={initialCollector?.phone} placeholder="(809) 555-0000" required />
+          </label>
+          <label>
+            Cédula
+            <input name="cedula" defaultValue={initialCollector?.cedula} placeholder="037-0000000-0" />
+          </label>
+          <label className="wide-span">
+            Dirección
+            <input
+              name="address"
+              defaultValue={initialCollector?.address}
+              placeholder="Sector, ciudad o punto de referencia"
+              required
+            />
+          </label>
+          <label className="toggle-field">
+            <input name="active" type="checkbox" defaultChecked={initialCollector?.active ?? true} />
+            Cobrador activo
+          </label>
+          <label className="full-span">
+            Notas
+            <textarea
+              name="notes"
+              defaultValue={initialCollector?.notes}
+              placeholder="Ruta, horario, zona asignada u observaciones internas"
+            />
+          </label>
+        </div>
+        <div className="modal-actions">
+          <button className="secondary-button" type="button" onClick={onClose}>Cancelar</button>
+          <button className="primary-button" type="submit">
+            <CheckCircle2 size={18} />
+            {initialCollector ? 'Actualizar cobrador' : 'Guardar cobrador'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 function LoanForm({
   customers,
   defaultCustomerId,
@@ -2395,8 +2718,11 @@ function LoanForm({
 }) {
   const initialCustomerId = defaultCustomerId ?? customers[0]?.id ?? 0
   const initialCustomer = customers.find((c) => c.id === initialCustomerId)
+  const initialCollector = collectorOptions.includes(initialCustomer?.collector ?? '')
+    ? initialCustomer?.collector
+    : collectorOptions[0]
   const [selectedCustomerId, setSelectedCustomerId] = useState(initialCustomerId)
-  const [selectedCollector, setSelectedCollector] = useState(initialCustomer?.collector ?? collectorOptions[0])
+  const [selectedCollector, setSelectedCollector] = useState(initialCollector ?? collectorOptions[0])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -2451,7 +2777,11 @@ function LoanForm({
                 const nextCustomerId = Number(e.target.value)
                 const nextCustomer = customers.find((c) => c.id === nextCustomerId)
                 setSelectedCustomerId(nextCustomerId)
-                setSelectedCollector(nextCustomer?.collector ?? collectorOptions[0])
+                setSelectedCollector(
+                  collectorOptions.includes(nextCustomer?.collector ?? '')
+                    ? nextCustomer?.collector ?? collectorOptions[0]
+                    : collectorOptions[0],
+                )
               }}
             >
               {customers.map((customer) => (

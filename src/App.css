@@ -648,6 +648,33 @@ p {
   background-image: url('https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1600&q=80');
 }
 
+.view-tabs {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px;
+  border: 1px solid #d8e4f5;
+  border-radius: 8px;
+  background: #eef5ff;
+}
+
+.view-tabs button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 16px;
+  color: #475569;
+  background: transparent;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.view-tabs button.active {
+  color: #123a6f;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.12);
+}
+
 .liquidation-layout {
   display: grid;
   gap: 18px;
@@ -699,6 +726,12 @@ p {
   background: #111827;
   color: #93c5fd;
   font-weight: 900;
+}
+
+.soft-avatar {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .drawer-layer {
@@ -1192,6 +1225,19 @@ textarea {
   min-height: 84px;
   padding-top: 11px;
   resize: vertical;
+}
+
+.toggle-field {
+  min-height: 43px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 22px;
+}
+
+.toggle-field input {
+  width: 18px;
+  min-height: 18px;
 }
 
 .full-span {
