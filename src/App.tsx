@@ -12,6 +12,7 @@ import {
   HandCoins,
   LayoutDashboard,
   Menu,
+  Moon,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -20,6 +21,7 @@ import {
   RefreshCcw,
   Search,
   ShieldCheck,
+  Sun,
   Trash2,
   Users,
   X,
@@ -743,6 +745,9 @@ function App() {
   const [dataLoading, setDataLoading] = useState(false)
   const [appError, setAppError] = useState<string | null>(null)
   const [actionPending, setActionPending] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    window.localStorage.getItem('capital-express-theme') === 'dark' ? 'dark' : 'light',
+  )
 
   const refreshData = useCallback(async (): Promise<AppData | null> => {
     setDataLoading(true)
@@ -800,6 +805,10 @@ function App() {
       listener.subscription.unsubscribe()
     }
   }, [refreshData])
+
+  useEffect(() => {
+    window.localStorage.setItem('capital-express-theme', theme)
+  }, [theme])
 
   const totals = useMemo(() => {
     const lentOut = loanRecords
@@ -988,7 +997,7 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${theme === 'dark' ? 'dark-theme' : ''}`}>
       <aside className={menuOpen ? 'sidebar open' : 'sidebar'}>
         <div className="brand">
           <div className="brand-mark">CE</div>
@@ -1092,6 +1101,15 @@ function App() {
             >
               <Plus size={18} />
               Nuevo préstamo
+            </button>
+            <button
+              className="theme-toggle"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+              type="button"
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              <span>{theme === 'dark' ? 'Claro' : 'Oscuro'}</span>
             </button>
             <button className="secondary-button" onClick={() => supabase.auth.signOut()}>
               Salir
@@ -1664,7 +1682,7 @@ function Dashboard({
             return (
               <button className="renewal-card" key={loan.id} onClick={() => onOpenLoan(loan)}>
                 <div className="renewal-card-top">
-                  <div className="avatar">{customer.name.slice(0, 2)}</div>
+                  <div className="avatar soft-avatar">{customer.name.slice(0, 2)}</div>
                   <div>
                     <strong>{customer.name}</strong>
                     <span>Préstamo #{loan.id} · {loan.frequency}</span>
@@ -1839,7 +1857,7 @@ function CustomersView({
                   <tr className="interactive-row" key={customer.id} onClick={() => onSelectCustomer(customer)}>
                     <td>
                       <div className="table-person">
-                        <div className="avatar">{customer.name.slice(0, 2)}</div>
+                        <div className="avatar soft-avatar">{customer.name.slice(0, 2)}</div>
                         <div>
                           <strong>{customer.name}</strong>
                           <span>{customer.cedula}</span>
@@ -2126,7 +2144,7 @@ function LoansView({
                   <tr className="interactive-row" key={loan.id} onClick={() => onOpenLoan(loan)}>
                     <td>
                       <div className="table-person">
-                        <div className="avatar">{customer.name.slice(0, 2)}</div>
+                        <div className="avatar soft-avatar">{customer.name.slice(0, 2)}</div>
                         <div>
                           <strong>{customer.name}</strong>
                           <span>Préstamo #{loan.id}</span>

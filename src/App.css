@@ -277,6 +277,21 @@ p {
   border: 1px solid #d8dee8;
 }
 
+.theme-toggle {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  color: #1f2937;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .icon-button {
   width: 34px;
   height: 34px;
@@ -1418,4 +1433,260 @@ textarea {
 .icon-button:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.dark-theme {
+  background: #0b1120;
+  color: #e5edf7;
+}
+
+.dark-theme .sidebar {
+  background: #111827;
+  color: #f8fafc;
+  border-right-color: #263244;
+}
+
+.dark-theme .brand-mark,
+.dark-theme .primary-button,
+.dark-theme .confirm-button {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22);
+}
+
+.dark-theme .primary-button:hover,
+.dark-theme .confirm-button:hover {
+  background: #1d4ed8;
+}
+
+.dark-theme .brand span,
+.dark-theme .session-card span,
+.dark-theme .nav-section,
+.dark-theme .eyebrow,
+.dark-theme .metric-card span,
+.dark-theme .info-item span,
+.dark-theme .list-row span,
+.dark-theme .loan-mini span,
+.dark-theme .customer-card span,
+.dark-theme .report-card small,
+.dark-theme .history-row small,
+.dark-theme .empty-state,
+.dark-theme .pagination-info,
+.dark-theme .app-alert span {
+  color: #94a3b8;
+}
+
+.dark-theme .nav-item {
+  color: #cbd5e1;
+}
+
+.dark-theme .nav-item:hover,
+.dark-theme .nav-item.active {
+  color: #ffffff;
+  background: #1e293b;
+  box-shadow: inset 3px 0 0 #60a5fa;
+}
+
+.dark-theme .session-card,
+.dark-theme .search-box,
+.dark-theme .metric-card,
+.dark-theme .panel,
+.dark-theme .detail-sheet,
+.dark-theme .report-card,
+.dark-theme .modal-card,
+.dark-theme .login-card,
+.dark-theme .app-alert {
+  border-color: #263244;
+  background: #111827;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
+}
+
+.dark-theme .app-alert.error {
+  border-color: #7f1d1d;
+  background: #2b1115;
+}
+
+.dark-theme .topbar h1,
+.dark-theme h2,
+.dark-theme h3,
+.dark-theme .panel h2,
+.dark-theme .sheet-header h2,
+.dark-theme .modal-header h2,
+.dark-theme .metric-card strong,
+.dark-theme .info-item strong,
+.dark-theme .table-person strong,
+.dark-theme td strong,
+.dark-theme .renewal-card,
+.dark-theme .renewal-facts strong,
+.dark-theme .standalone-state h1,
+.dark-theme .login-card h1 {
+  color: #f8fafc;
+}
+
+.dark-theme .secondary-button,
+.dark-theme .theme-toggle,
+.dark-theme .icon-button {
+  color: #e2e8f0;
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.dark-theme .search-box,
+.dark-theme input,
+.dark-theme select,
+.dark-theme textarea {
+  color: #e5edf7;
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.dark-theme .search-box input {
+  color: #e5edf7;
+}
+
+.dark-theme input::placeholder,
+.dark-theme textarea::placeholder,
+.dark-theme .search-box input::placeholder {
+  color: #64748b;
+}
+
+.dark-theme .metric-card svg,
+.dark-theme .metric-grid .metric-card:nth-child(4) svg {
+  color: #bfdbfe;
+  background: #1e293b;
+}
+
+.dark-theme .metric-grid .metric-card:nth-child(1),
+.dark-theme .metric-grid .metric-card:nth-child(2),
+.dark-theme .metric-grid .metric-card:nth-child(3),
+.dark-theme .metric-grid .metric-card:nth-child(4),
+.dark-theme .profit-stack.light,
+.dark-theme .liquidation-hero,
+.dark-theme .info-item,
+.dark-theme .list-row,
+.dark-theme .loan-mini,
+.dark-theme .customer-card,
+.dark-theme .receive-box,
+.dark-theme .context-strip {
+  border-color: #263244;
+  background: #0f172a;
+}
+
+.dark-theme .rule-chip {
+  color: #fde68a;
+  background: #3f3113;
+}
+
+.dark-theme .renewal-card,
+.dark-theme .quick-menu,
+.dark-theme .view-tabs {
+  border-color: #263244;
+  background: #111827;
+}
+
+.dark-theme .view-tabs button {
+  color: #94a3b8;
+}
+
+.dark-theme .view-tabs button.active {
+  color: #eff6ff;
+  background: #1e293b;
+}
+
+.dark-theme .renewal-card:hover,
+.dark-theme .customer-card.selected {
+  border-color: #60a5fa;
+  background: #12213a;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.24);
+}
+
+.dark-theme .receive-box strong,
+.dark-theme .profit-stack.light strong,
+.dark-theme .report-card svg {
+  color: #60a5fa;
+}
+
+.dark-theme .renewal-progress {
+  background: #1e293b;
+}
+
+.dark-theme .renewal-progress span {
+  background: #60a5fa;
+}
+
+.dark-theme table thead th,
+.dark-theme .summary-row td {
+  color: #94a3b8;
+  background: #0f172a;
+  border-bottom-color: #263244;
+}
+
+.dark-theme td {
+  color: #e2e8f0;
+  border-bottom-color: #263244;
+}
+
+.dark-theme .interactive-row:hover,
+.dark-theme .quick-menu button:hover,
+.dark-theme .report-card:hover {
+  background: #162033;
+}
+
+.dark-theme .quick-menu button {
+  color: #e2e8f0;
+}
+
+.dark-theme .danger-action,
+.dark-theme .quick-menu button.danger-action {
+  color: #fca5a5;
+}
+
+.dark-theme .soft-avatar {
+  border-color: #2563eb;
+  background: #172554;
+  color: #bfdbfe;
+}
+
+.dark-theme .avatar:not(.soft-avatar) {
+  background: #172554;
+  color: #bfdbfe;
+}
+
+.dark-theme .status.activo,
+.dark-theme .status.a-tiempo {
+  color: #bbf7d0;
+  background: #14532d;
+}
+
+.dark-theme .status.atrasado,
+.dark-theme .status.tarde {
+  color: #fed7aa;
+  background: #7c2d12;
+}
+
+.dark-theme .status.renovado,
+.dark-theme .status.confirmada {
+  color: #bfdbfe;
+  background: #1e3a8a;
+}
+
+.dark-theme .status.pagado,
+.dark-theme .status.cerrado,
+.dark-theme .status.pendiente {
+  color: #e2e8f0;
+  background: #334155;
+}
+
+.dark-theme .drawer-backdrop,
+.dark-theme .modal-layer {
+  background: rgba(2, 6, 23, 0.68);
+}
+
+.dark-theme .page-banner {
+  border-color: #263244;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+}
+
+.dark-theme .pagination {
+  border-top-color: #263244;
 }
