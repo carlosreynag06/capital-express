@@ -1438,8 +1438,8 @@ textarea {
 .dark-theme {
   background: #0b1120;
   color: #e5edf7;
-  --dark-cta: #d4a017;
-  --dark-cta-hover: #c28d0c;
+  --dark-cta: linear-gradient(180deg, #f59a00 0%, #e28700 100%);
+  --dark-cta-hover: linear-gradient(180deg, #ff9f05 0%, #d97d00 100%);
 }
 
 .dark-theme .sidebar {
@@ -1454,7 +1454,7 @@ textarea {
 .dark-theme .renew-button {
   background: var(--dark-cta);
   background-color: var(--dark-cta);
-  color: #111827;
+  color: #ffffff;
   box-shadow: none;
 }
 
@@ -1470,7 +1470,7 @@ textarea {
 .app-shell.dark-theme button.renew-button {
   background: var(--dark-cta);
   background-color: var(--dark-cta);
-  color: #111827;
+  color: #ffffff;
   box-shadow: none;
 }
 
