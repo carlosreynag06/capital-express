@@ -1342,3 +1342,34 @@ textarea {
   align-items: center;
   gap: 8px;
 }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid #e8ecf0;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: #748294;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-page {
+  font-size: 13px;
+  color: #334155;
+  min-width: 48px;
+  text-align: center;
+}
+
+.icon-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

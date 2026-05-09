@@ -2,6 +2,7 @@ import {
   Banknote,
   BarChart3,
   CalendarDays,
+  ChevronLeft,
   CheckCircle2,
   ChevronRight,
   ClipboardList,
@@ -1467,6 +1468,47 @@ function LoginScreen() {
   )
 }
 
+function Pagination({
+  total,
+  page,
+  perPage,
+  onPageChange,
+}: {
+  total: number
+  page: number
+  perPage: number
+  onPageChange: (page: number) => void
+}) {
+  const totalPages = Math.ceil(total / perPage)
+  if (totalPages <= 1) return null
+  const start = (page - 1) * perPage + 1
+  const end = Math.min(page * perPage, total)
+  return (
+    <div className="pagination">
+      <span className="pagination-info">{start}–{end} de {total}</span>
+      <div className="pagination-controls">
+        <button
+          className="icon-button"
+          onClick={() => onPageChange(page - 1)}
+          disabled={page === 1}
+          aria-label="Página anterior"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <span className="pagination-page">{page} / {totalPages}</span>
+        <button
+          className="icon-button"
+          onClick={() => onPageChange(page + 1)}
+          disabled={page === totalPages}
+          aria-label="Página siguiente"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function Dashboard({
   totals,
   activeLoans,
@@ -1616,6 +1658,7 @@ function CustomersView({
   onOpenLoan: (loan: Loan) => void
 }) {
   const [openActions, setOpenActions] = useState<number | null>(null)
+  const [page, setPage] = useState(1)
   const term = searchTerm.toLowerCase()
   const visibleCustomers = searchTerm
     ? customers.filter((c) =>
@@ -1625,6 +1668,10 @@ function CustomersView({
         c.address.toLowerCase().includes(term)
       )
     : customers
+  const perPage = 10
+  const totalPages = Math.max(1, Math.ceil(visibleCustomers.length / perPage))
+  const safePage = Math.min(page, totalPages)
+  const pageCustomers = visibleCustomers.slice((safePage - 1) * perPage, safePage * perPage)
   const customerLoans = loans.filter(
     (loan) =>
       loan.customerId === selectedCustomer?.id &&
@@ -1671,7 +1718,7 @@ function CustomersView({
               </tr>
             </thead>
             <tbody>
-              {visibleCustomers.map((customer) => {
+              {pageCustomers.map((customer) => {
                 const customerActiveLoans = loans.filter(
                   (loan) =>
                     loan.customerId === customer.id &&
@@ -1766,6 +1813,7 @@ function CustomersView({
             </tbody>
           </table>
         </div>
+        <Pagination total={visibleCustomers.length} page={safePage} perPage={perPage} onPageChange={setPage} />
       </div>
 
       {selectedCustomer && (
@@ -1865,6 +1913,7 @@ function LoansView({
   onGoPayments: (context: PaymentContext) => void
 }) {
   const [openActions, setOpenActions] = useState<number | null>(null)
+  const [page, setPage] = useState(1)
   const term = searchTerm.toLowerCase()
   const visibleLoans = searchTerm
     ? loans.filter((loan) => {
@@ -1877,6 +1926,10 @@ function LoansView({
         )
       })
     : loans
+  const perPage = 10
+  const loansTotalPages = Math.max(1, Math.ceil(visibleLoans.length / perPage))
+  const safePage = Math.min(page, loansTotalPages)
+  const pageLoans = visibleLoans.slice((safePage - 1) * perPage, safePage * perPage)
 
   return (
     <section className="loans-layout">
@@ -1911,7 +1964,7 @@ function LoansView({
               </tr>
             </thead>
             <tbody>
-              {visibleLoans.map((loan) => {
+              {pageLoans.map((loan) => {
                 const customer = getCustomer(customers, loan.customerId)
                 if (!customer) {
                   return null
@@ -1991,6 +2044,7 @@ function LoansView({
             </tbody>
           </table>
         </div>
+        <Pagination total={visibleLoans.length} page={safePage} perPage={perPage} onPageChange={setPage} />
       </div>
 
       {selectedLoan && (
@@ -2189,9 +2243,9 @@ function LoanDetail({
                 <tr key={row.n} className={row.status === 'Próxima' ? 'schedule-row-next' : undefined}>
                   <td>{row.n}</td>
                   <td>{row.scheduledDate}</td>
-                  <td>{row.actualDate ?? '�'}</td>
+                  <td>{row.actualDate ?? '-'}</td>
                   <td>{formatMoney(row.amount)}</td>
-                  <td>{row.mora > 0 ? formatMoney(row.mora) : '�'}</td>
+                  <td>{row.mora > 0 ? formatMoney(row.mora) : '-'}</td>
                   <td>{formatMoney(row.balance)}</td>
                   <td><StatusBadge status={row.status} /></td>
                 </tr>
@@ -2487,6 +2541,8 @@ function PaymentsView({
 }) {
   const [showPaymentForm, setShowPaymentForm] = useState(Boolean(context))
   const [selectedPaymentLoan, setSelectedPaymentLoan] = useState<Loan | null>(loan)
+  const [paymentsPage, setPaymentsPage] = useState(1)
+  const [upcomingPage, setUpcomingPage] = useState(1)
   const activeLoans = loans.filter((loanRecord) => loanRecord.status === 'Activo' || loanRecord.status === 'Atrasado')
   const term = searchTerm.toLowerCase()
   const visiblePayments = searchTerm
@@ -2500,6 +2556,13 @@ function PaymentsView({
         )
       })
     : payments
+  const perPage = 10
+  const paymentsTotal = Math.max(1, Math.ceil(visiblePayments.length / perPage))
+  const safePaymentsPage = Math.min(paymentsPage, paymentsTotal)
+  const pagePayments = visiblePayments.slice((safePaymentsPage - 1) * perPage, safePaymentsPage * perPage)
+  const upcomingTotal = Math.max(1, Math.ceil(activeLoans.length / perPage))
+  const safeUpcomingPage = Math.min(upcomingPage, upcomingTotal)
+  const pageUpcoming = activeLoans.slice((safeUpcomingPage - 1) * perPage, safeUpcomingPage * perPage)
   const collectedToday = payments
     .filter((payment) => payment.date === formatDateInput(new Date()))
     .reduce((sum, payment) => sum + payment.amount + payment.lateFeeAmount, 0)
@@ -2560,7 +2623,7 @@ function PaymentsView({
               </tr>
             </thead>
             <tbody>
-              {visiblePayments.map((payment) => {
+              {pagePayments.map((payment) => {
                 const paymentCustomer = getCustomer(customers, payment.customerId)
                 const paymentLoan = loans.find((loanRecord) => loanRecord.id === payment.loanId)
 
@@ -2587,6 +2650,7 @@ function PaymentsView({
             </tbody>
           </table>
         </div>
+        <Pagination total={visiblePayments.length} page={safePaymentsPage} perPage={perPage} onPageChange={setPaymentsPage} />
       </section>
 
       <section className="panel table-panel full-span">
@@ -2612,7 +2676,7 @@ function PaymentsView({
               </tr>
             </thead>
             <tbody>
-              {activeLoans.map((loanRecord) => {
+              {pageUpcoming.map((loanRecord) => {
                 const loanCustomer = getCustomer(customers, loanRecord.customerId)
                 const progress = getLoanProgress(loanRecord)
                 const nextPayment = Math.min(loanRecord.payments, progress.paidPayments + 1)
@@ -2648,6 +2712,7 @@ function PaymentsView({
             </tbody>
           </table>
         </div>
+        <Pagination total={activeLoans.length} page={safeUpcomingPage} perPage={perPage} onPageChange={setUpcomingPage} />
       </section>
 
       {showPaymentForm && (
@@ -3023,7 +3088,12 @@ function GastosView({
 }) {
   const [showExpenseForm, setShowExpenseForm] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [page, setPage] = useState(1)
   const total = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const perPage = 10
+  const totalPages = Math.max(1, Math.ceil(expenses.length / perPage))
+  const safePage = Math.min(page, totalPages)
+  const pageExpenses = expenses.slice((safePage - 1) * perPage, safePage * perPage)
 
   return (
     <section className="expenses-layout">
@@ -3063,10 +3133,10 @@ function GastosView({
               </tr>
             </thead>
             <tbody>
-              {expenses.map((expense) => (
+              {pageExpenses.map((expense) => (
                 <tr key={expense.id}>
                   <td><strong>{expense.type}</strong></td>
-                  <td>{expense.description || '�'}</td>
+                  <td>{expense.description || '-'}</td>
                   <td>{expense.date}</td>
                   <td>{expense.owner}</td>
                   <td>{formatMoney(expense.amount)}</td>
@@ -3101,6 +3171,7 @@ function GastosView({
             </tbody>
           </table>
         </div>
+        <Pagination total={expenses.length} page={safePage} perPage={perPage} onPageChange={setPage} />
       </div>
 
       {showExpenseForm && (
@@ -3298,4 +3369,3 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default App
-
