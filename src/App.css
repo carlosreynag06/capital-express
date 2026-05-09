@@ -1449,14 +1449,14 @@ textarea {
 .dark-theme .brand-mark,
 .dark-theme .primary-button,
 .dark-theme .confirm-button {
-  background: #2563eb;
-  color: #ffffff;
-  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22);
+  background: #d4a017;
+  color: #111827;
+  box-shadow: none;
 }
 
 .dark-theme .primary-button:hover,
 .dark-theme .confirm-button:hover {
-  background: #1d4ed8;
+  background: #c28d0c;
 }
 
 .dark-theme .brand span,
@@ -1626,10 +1626,41 @@ textarea {
   border-bottom-color: #263244;
 }
 
-.dark-theme .interactive-row:hover,
-.dark-theme .quick-menu button:hover,
+.dark-theme .interactive-row:hover td {
+  color: #f8fafc;
+  background: #172033;
+}
+
+.dark-theme .interactive-row:hover .table-person span,
+.dark-theme .interactive-row:hover td span {
+  color: #cbd5e1;
+}
+
+.dark-theme .interactive-row:hover .quick-actions .icon-button,
+.dark-theme .quick-actions .icon-button[aria-expanded='true'] {
+  color: #f8fafc;
+  background: #243148;
+  box-shadow: 0 0 0 1px #3b4a63;
+}
+
+.dark-theme .quick-menu button:hover {
+  color: #bfdbfe;
+  background: #172033;
+}
+
+.dark-theme .report-card {
+  color: #f8fafc;
+  background: linear-gradient(180deg, #162033, #111827);
+  border-color: #334155;
+}
+
+.dark-theme .report-card span {
+  color: #f8fafc;
+}
+
 .dark-theme .report-card:hover {
-  background: #162033;
+  background: linear-gradient(180deg, #1e2b44, #162033);
+  border-color: #475569;
 }
 
 .dark-theme .quick-menu button {
