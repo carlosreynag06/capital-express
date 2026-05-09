@@ -1718,29 +1718,42 @@ textarea {
   color: #bfdbfe;
 }
 
+.dark-theme .status {
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  color: #e2e8f0;
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.24), rgba(71, 85, 105, 0.18));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
 .dark-theme .status.activo,
-.dark-theme .status.a-tiempo {
-  color: #bbf7d0;
-  background: #14532d;
+.dark-theme .status.a-tiempo,
+.dark-theme .status.confirmada {
+  color: #d1fae5;
+  border-color: rgba(52, 211, 153, 0.42);
+  background: linear-gradient(180deg, rgba(22, 163, 74, 0.48), rgba(20, 83, 45, 0.42));
 }
 
 .dark-theme .status.atrasado,
 .dark-theme .status.tarde {
-  color: #fed7aa;
-  background: #7c2d12;
+  color: #ffedd5;
+  border-color: rgba(251, 146, 60, 0.44);
+  background: linear-gradient(180deg, rgba(194, 65, 12, 0.54), rgba(124, 45, 18, 0.46));
 }
 
 .dark-theme .status.renovado,
-.dark-theme .status.confirmada {
-  color: #bfdbfe;
-  background: #1e3a8a;
+.dark-theme .status.próxima {
+  color: #dbeafe;
+  border-color: rgba(96, 165, 250, 0.44);
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.48), rgba(30, 58, 138, 0.42));
 }
 
 .dark-theme .status.pagado,
 .dark-theme .status.cerrado,
-.dark-theme .status.pendiente {
-  color: #e2e8f0;
-  background: #334155;
+.dark-theme .status.pendiente,
+.dark-theme .status.inactivo {
+  color: #f1f5f9;
+  border-color: rgba(148, 163, 184, 0.4);
+  background: linear-gradient(180deg, rgba(71, 85, 105, 0.56), rgba(51, 65, 85, 0.46));
 }
 
 .dark-theme .drawer-backdrop,
