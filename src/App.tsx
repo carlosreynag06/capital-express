@@ -36,7 +36,7 @@ import {
   XAxis,
 } from 'recharts'
 import type { FormEvent, MouseEvent, ReactNode } from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabaseClient'
 import './App.css'
@@ -745,6 +745,7 @@ function App() {
   const [dataLoading, setDataLoading] = useState(false)
   const [appError, setAppError] = useState<string | null>(null)
   const [actionPending, setActionPending] = useState(false)
+  const loadedSessionUserRef = useRef<string | null>(null)
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
     window.localStorage.getItem('capital-express-theme') === 'dark' ? 'dark' : 'light',
   )
@@ -782,15 +783,25 @@ function App() {
       setSession(data.session)
       setAuthLoading(false)
       if (data.session) {
+        loadedSessionUserRef.current = data.session.user.id
         void refreshData()
       }
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === 'INITIAL_SESSION') return
+
       setSession(nextSession)
+      setAuthLoading(false)
+
       if (nextSession) {
-        void refreshData()
+        const nextUserId = nextSession.user.id
+        if (loadedSessionUserRef.current !== nextUserId) {
+          loadedSessionUserRef.current = nextUserId
+          void refreshData()
+        }
       } else {
+        loadedSessionUserRef.current = null
         setCustomerRecords([])
         setCollectorRecords([])
         setLoanRecords([])
@@ -808,6 +819,7 @@ function App() {
 
   useEffect(() => {
     window.localStorage.setItem('capital-express-theme', theme)
+    document.documentElement.dataset.theme = theme
   }, [theme])
 
   const totals = useMemo(() => {
@@ -905,7 +917,7 @@ function App() {
 
   async function confirmRenewal(loan: Loan): Promise<boolean> {
     if (!loan.dbId) {
-      setAppError('No se encontró el préstamo en Supabase.')
+      setAppError('No se encontró el préstamo.')
       return false
     }
 
@@ -954,7 +966,7 @@ function App() {
   async function registerPayment(payment: PaymentRecord): Promise<boolean> {
     const loan = loanRecords.find((record) => record.id === payment.loanId)
     if (!loan?.dbId) {
-      setAppError('No se encontró el préstamo en Supabase.')
+      setAppError('No se encontró el préstamo.')
       return false
     }
 
@@ -985,7 +997,7 @@ function App() {
   }
 
   if (authLoading) {
-    return <AppState title="Conectando" message="Validando la sesión de Supabase." />
+    return <AppState theme={theme} title="Conectando" message="Preparando tu sesion." />
   }
 
   if (!session) {
@@ -993,7 +1005,7 @@ function App() {
   }
 
   if (dataLoading && customerRecords.length === 0) {
-    return <AppState title="Cargando datos" message="Sincronizando clientes, préstamos, cuotas y liquidaciones desde Supabase." />
+    return <AppState theme={theme} title="Cargando datos" message="Preparando clientes, prestamos, pagos y liquidaciones." />
   }
 
   return (
@@ -1120,7 +1132,7 @@ function App() {
         {(dataLoading || actionPending || appError) && (
           <div className={appError ? 'app-alert error' : 'app-alert'}>
             <strong>{appError ? 'Atención' : actionPending ? 'Guardando cambios' : 'Cargando datos'}</strong>
-            <span>{appError ?? 'Sincronizando con Supabase.'}</span>
+            <span>{appError ?? 'Sincronizando cambios.'}</span>
             {appError && (
               <button className="secondary-button" onClick={() => void refreshData()}>
                 Reintentar
@@ -1159,7 +1171,7 @@ function App() {
             }}
             onDeleteCustomer={async (customer) => {
               if (!customer.dbId) {
-                setAppError('No se encontró el cliente en Supabase.')
+                setAppError('No se encontró el cliente.')
                 return
               }
 
@@ -1209,7 +1221,7 @@ function App() {
             }}
             onPayOffLoan={async (loan) => {
               if (!loan.dbId) {
-                setAppError('No se encontró el préstamo en Supabase.')
+                setAppError('No se encontró el préstamo.')
                 return
               }
 
@@ -1251,7 +1263,7 @@ function App() {
             }}
             onDeleteCollector={async (collector) => {
               if (!collector.dbId) {
-                setAppError('No se encontró el cobrador en Supabase.')
+                setAppError('No se encontró el cobrador.')
                 return
               }
 
@@ -1312,7 +1324,7 @@ function App() {
             }}
             onEditExpense={async (expense) => {
               if (!expense.dbId) {
-                setAppError('No se encontró el gasto en Supabase.')
+                setAppError('No se encontró el gasto.')
                 return false
               }
 
@@ -1340,7 +1352,7 @@ function App() {
             onDeleteExpense={async (id) => {
               const expense = expenseRecords.find((record) => record.id === id)
               if (!expense?.dbId) {
-                setAppError('No se encontró el gasto en Supabase.')
+                setAppError('No se encontró el gasto.')
                 return
               }
 
@@ -1432,7 +1444,7 @@ function App() {
           }}
           onUpdate={async (customer) => {
             if (!customer.dbId) {
-              setAppError('No se encontró el cliente en Supabase.')
+              setAppError('No se encontró el cliente.')
               return
             }
 
@@ -1494,7 +1506,7 @@ function App() {
           }}
           onUpdate={async (collector) => {
             if (!collector.dbId) {
-              setAppError('No se encontró el cobrador en Supabase.')
+              setAppError('No se encontró el cobrador.')
               return
             }
 
@@ -1526,9 +1538,9 @@ function App() {
   )
 }
 
-function AppState({ title, message }: { title: string; message: string }) {
+function AppState({ title, message, theme }: { title: string; message: string; theme: 'light' | 'dark' }) {
   return (
-    <main className="standalone-state">
+    <main className={`standalone-state ${theme === 'dark' ? 'dark-theme' : ''}`}>
       <div className="brand-mark">CE</div>
       <h1>{title}</h1>
       <p>{message}</p>
@@ -2919,7 +2931,7 @@ function PaymentsView({
 
   return (
     <section className="payments-layout">
-      <div className="metric-grid compact">
+      <div className="metric-grid compact payments-metrics">
         <Metric icon={ReceiptText} label="Cobrado hoy" value={formatMoney(collectedToday)} />
         <Metric icon={ClipboardList} label="Cuotas registradas" value={payments.length.toString()} />
         <Metric icon={CalendarDays} label="Pagos tarde" value={latePayments.toString()} />
