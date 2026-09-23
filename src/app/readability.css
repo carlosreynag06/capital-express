@@ -4,7 +4,7 @@
   scrollbar-width: thin;
 }
 .brand {
-  font-size: 19px;
+  font-size: var(--text-heading);
   letter-spacing: -0.8px;
 }
 .brand-name {
@@ -14,41 +14,41 @@
   margin-left: 2px;
 }
 .login-brand > .brand {
-  font-size: 26px;
+  font-size: var(--text-stat);
 }
 .document-header .brand {
-  font-size: 24px;
+  font-size: var(--text-stat);
 }
 .app-shell .sidebar-bottom {
   padding-top: 24px;
 }
 .app-shell nav a {
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 .app-shell .workspace {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .app-shell .workspace small,
 .app-shell .owner small {
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .app-shell .breadcrumb,
 .app-shell .breadcrumb strong {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .app-shell .page-head p {
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 .app-shell .panel-head h2 {
-  font-size: 17px;
+  font-size: var(--text-heading);
 }
 .app-shell .panel-head p {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .app-shell .text-link,
 .app-shell .btn,
 .app-shell .tabs button {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .app-shell .metric {
   background: #fff;
@@ -65,14 +65,14 @@
   color: #253d4b;
 }
 .app-shell .metric > strong {
-  font-size: clamp(23px, 1.85vw, 30px);
+  font-size: var(--text-metric);
 }
 .app-shell .metric-caption {
-  font-size: 11px;
+  font-size: var(--text-small);
   color: #667985;
 }
 .app-shell .metric-label {
-  font-size: 13px;
+  font-size: var(--text-base);
   color: #546d7a;
 }
 .app-shell .metric-icon,
@@ -80,7 +80,7 @@
   color: #728a96;
 }
 .app-shell .metric-tag {
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #497964;
   background: #eef4ef;
   padding: 4px 6px;
@@ -90,46 +90,46 @@
 .app-shell .chart-column > span,
 .app-shell .chart-foot,
 .app-shell .chart-labels {
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .app-shell .chart-summary > strong {
-  font-size: 26px;
+  font-size: var(--text-stat);
 }
 .app-shell .due-summary strong {
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 .app-shell .due-summary div > span {
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .app-shell .table-scroll td {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .app-shell .table-scroll th {
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .app-shell .customer-cell strong {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .app-shell td small {
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .app-shell .badge {
-  font-size: 10px;
+  font-size: var(--text-caption);
   padding: 6px 8px;
 }
 .app-shell .due-item > div strong {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .app-shell .due-item small {
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .app-shell .due-amount {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .app-shell .recent-payment strong,
 .app-shell .near-loan > div:first-child,
 .app-shell .event-row a {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .app-shell .recent-payment small,
 .app-shell .near-loan small,
@@ -137,11 +137,11 @@
 .app-shell .event-row small,
 .app-shell .attention-strip div > span,
 .app-shell .table-bottom {
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .app-shell .attention-strip strong,
 .app-shell .attention-action {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .app-shell .terms-grid dt,
 .app-shell .report-filter-row label,
@@ -149,24 +149,24 @@
 .app-shell .collection-balance span,
 .app-shell .last-note p,
 .app-shell .communication-note p {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .app-shell .terms-grid dd,
 .app-shell .collection-card-head strong,
 .app-shell .communication-note strong {
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 .app-shell .form-hint,
 .app-shell .note-banner,
 .app-shell .report-lines > div,
 .app-shell .last-note small {
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .app-shell .back-link,
 .app-shell .customer-profile-head p,
 .app-shell .contact-card a,
 .app-shell .contact-card p {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .dialog-head p,
 .dialog-body label,
@@ -177,19 +177,19 @@
 .login-form label,
 .login-form input,
 .login-form-inner > p {
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 .dialog-head h2 {
-  font-size: 22px;
+  font-size: var(--text-title);
 }
 .login-form h2 {
-  font-size: 29px;
+  font-size: var(--text-page);
 }
 .login-pitch p {
-  font-size: 15px;
+  font-size: var(--text-lead);
 }
 .app-shell .page-footer {
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 @media (max-height: 800px) and (min-width: 761px) {
   .app-shell .sidebar-tip {
@@ -210,54 +210,58 @@
     visibility: visible;
   }
   .app-shell .metric > strong {
-    font-size: 20px;
+    font-size: var(--text-title);
+  }
+  .app-shell .metrics:not(.three) .metric > strong {
+    font-size: var(--text-heading);
+    white-space: nowrap;
   }
   .app-shell .metric-label {
-    font-size: 12px;
+    font-size: var(--text-small);
   }
   .app-shell .metrics.three .metric-label {
-    font-size: 12px;
+    font-size: var(--text-small);
   }
   .app-shell .metric-caption {
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .app-shell .metrics.three .metric > strong {
-    font-size: 24px;
+    font-size: var(--text-stat);
   }
   .app-shell .metrics.three .metric-caption {
     position: static;
     max-width: none;
     margin-top: 11px;
     text-align: left;
-    font-size: 11px;
+    font-size: var(--text-small);
   }
   .app-shell .metrics.three .metric {
     min-height: 116px;
   }
   .app-shell .profile-tabs button,
   .app-shell .schedule-grid small {
-    font-size: 11px;
+    font-size: var(--text-small);
   }
   .app-shell .panel-head h2 {
-    font-size: 16px;
+    font-size: var(--text-lead);
   }
   .app-shell .panel-head p,
   .app-shell .table-scroll td,
   .app-shell .due-item small,
   .app-shell .recent-payment small {
-    font-size: 11px;
+    font-size: var(--text-small);
   }
   .app-shell .chart-summary > span,
   .app-shell .chart-legend span,
   .app-shell .chart-column > span,
   .app-shell .chart-foot,
   .app-shell .chart-labels {
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .app-shell .metric {
     padding: 18px 15px;
   }
   .brand {
-    font-size: 17px;
+    font-size: var(--text-heading);
   }
 }
