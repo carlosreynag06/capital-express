@@ -1,0 +1,263 @@
+/* Readable hierarchy for financial work, including compact laptop layouts. */
+.app-shell .sidebar {
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.brand {
+  font-size: 19px;
+  letter-spacing: -0.8px;
+}
+.brand-name {
+  white-space: nowrap;
+}
+.brand-light {
+  margin-left: 2px;
+}
+.login-brand > .brand {
+  font-size: 26px;
+}
+.document-header .brand {
+  font-size: 24px;
+}
+.app-shell .sidebar-bottom {
+  padding-top: 24px;
+}
+.app-shell nav a {
+  font-size: 13px;
+}
+.app-shell .workspace {
+  font-size: 12px;
+}
+.app-shell .workspace small,
+.app-shell .owner small {
+  font-size: 10px;
+}
+.app-shell .breadcrumb,
+.app-shell .breadcrumb strong {
+  font-size: 12px;
+}
+.app-shell .page-head p {
+  font-size: 13px;
+}
+.app-shell .panel-head h2 {
+  font-size: 17px;
+}
+.app-shell .panel-head p {
+  font-size: 12px;
+}
+.app-shell .text-link,
+.app-shell .btn,
+.app-shell .tabs button {
+  font-size: 12px;
+}
+.app-shell .metric {
+  background: #fff;
+  border-color: #e3e9ed;
+  box-shadow: 0 2px 9px #23384905;
+}
+.app-shell .metric.accent {
+  background: #fff;
+  border-color: #e3e9ed;
+  box-shadow: 0 2px 9px #23384905;
+}
+.app-shell .metric.accent > strong,
+.app-shell .metric > strong {
+  color: #253d4b;
+}
+.app-shell .metric > strong {
+  font-size: clamp(23px, 1.85vw, 30px);
+}
+.app-shell .metric-caption {
+  font-size: 11px;
+  color: #667985;
+}
+.app-shell .metric-label {
+  font-size: 13px;
+  color: #546d7a;
+}
+.app-shell .metric-icon,
+.app-shell .metric.accent .metric-icon {
+  color: #728a96;
+}
+.app-shell .metric-tag {
+  font-size: 9px;
+  color: #497964;
+  background: #eef4ef;
+  padding: 4px 6px;
+}
+.app-shell .chart-summary > span,
+.app-shell .chart-legend span,
+.app-shell .chart-column > span,
+.app-shell .chart-foot,
+.app-shell .chart-labels {
+  font-size: 11px;
+}
+.app-shell .chart-summary > strong {
+  font-size: 26px;
+}
+.app-shell .due-summary strong {
+  font-size: 13px;
+}
+.app-shell .due-summary div > span {
+  font-size: 11px;
+}
+.app-shell .table-scroll td {
+  font-size: 12px;
+}
+.app-shell .table-scroll th {
+  font-size: 11px;
+}
+.app-shell .customer-cell strong {
+  font-size: 12px;
+}
+.app-shell td small {
+  font-size: 10px;
+}
+.app-shell .badge {
+  font-size: 10px;
+  padding: 6px 8px;
+}
+.app-shell .due-item > div strong {
+  font-size: 12px;
+}
+.app-shell .due-item small {
+  font-size: 10px;
+}
+.app-shell .due-amount {
+  font-size: 12px;
+}
+.app-shell .recent-payment strong,
+.app-shell .near-loan > div:first-child,
+.app-shell .event-row a {
+  font-size: 12px;
+}
+.app-shell .recent-payment small,
+.app-shell .near-loan small,
+.app-shell .event-row p,
+.app-shell .event-row small,
+.app-shell .attention-strip div > span,
+.app-shell .table-bottom {
+  font-size: 11px;
+}
+.app-shell .attention-strip strong,
+.app-shell .attention-action {
+  font-size: 12px;
+}
+.app-shell .terms-grid dt,
+.app-shell .report-filter-row label,
+.app-shell .collection-card-head small,
+.app-shell .collection-balance span,
+.app-shell .last-note p,
+.app-shell .communication-note p {
+  font-size: 12px;
+}
+.app-shell .terms-grid dd,
+.app-shell .collection-card-head strong,
+.app-shell .communication-note strong {
+  font-size: 13px;
+}
+.app-shell .form-hint,
+.app-shell .note-banner,
+.app-shell .report-lines > div,
+.app-shell .last-note small {
+  font-size: 11px;
+}
+.app-shell .back-link,
+.app-shell .customer-profile-head p,
+.app-shell .contact-card a,
+.app-shell .contact-card p {
+  font-size: 12px;
+}
+.dialog-head p,
+.dialog-body label,
+.dialog-body input,
+.dialog-body select,
+.dialog-body textarea,
+.form-hint,
+.login-form label,
+.login-form input,
+.login-form-inner > p {
+  font-size: 13px;
+}
+.dialog-head h2 {
+  font-size: 22px;
+}
+.login-form h2 {
+  font-size: 29px;
+}
+.login-pitch p {
+  font-size: 15px;
+}
+.app-shell .page-footer {
+  font-size: 10px;
+}
+@media (max-height: 800px) and (min-width: 761px) {
+  .app-shell .sidebar-tip {
+    display: none;
+  }
+  .app-shell .workspace {
+    margin: 25px 0 22px;
+  }
+  .app-shell .sidebar-bottom {
+    padding-top: 15px;
+  }
+}
+@media (max-width: 760px) {
+  .app-shell .sidebar {
+    visibility: hidden;
+  }
+  .app-shell .sidebar.open {
+    visibility: visible;
+  }
+  .app-shell .metric > strong {
+    font-size: 20px;
+  }
+  .app-shell .metric-label {
+    font-size: 12px;
+  }
+  .app-shell .metrics.three .metric-label {
+    font-size: 12px;
+  }
+  .app-shell .metric-caption {
+    font-size: 10px;
+  }
+  .app-shell .metrics.three .metric > strong {
+    font-size: 24px;
+  }
+  .app-shell .metrics.three .metric-caption {
+    position: static;
+    max-width: none;
+    margin-top: 11px;
+    text-align: left;
+    font-size: 11px;
+  }
+  .app-shell .metrics.three .metric {
+    min-height: 116px;
+  }
+  .app-shell .profile-tabs button,
+  .app-shell .schedule-grid small {
+    font-size: 11px;
+  }
+  .app-shell .panel-head h2 {
+    font-size: 16px;
+  }
+  .app-shell .panel-head p,
+  .app-shell .table-scroll td,
+  .app-shell .due-item small,
+  .app-shell .recent-payment small {
+    font-size: 11px;
+  }
+  .app-shell .chart-summary > span,
+  .app-shell .chart-legend span,
+  .app-shell .chart-column > span,
+  .app-shell .chart-foot,
+  .app-shell .chart-labels {
+    font-size: 10px;
+  }
+  .app-shell .metric {
+    padding: 18px 15px;
+  }
+  .brand {
+    font-size: 17px;
+  }
+}

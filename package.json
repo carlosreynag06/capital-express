@@ -1,0 +1,42 @@
+{
+  "name": "capital-express",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write src scripts next.config.ts tsconfig.json package.json",
+    "format:check": "prettier --check src scripts next.config.ts tsconfig.json package.json",
+    "test:auth": "node --env-file=.env.local scripts/auth-test-session.mjs",
+    "test:concurrency": "node --env-file=.env.local scripts/test-concurrency.mjs",
+    "test:pdf": "node scripts/verify-pdf.mjs",
+    "db:migrate": "node --env-file=.env.local scripts/manage.mjs migrate",
+    "db:seed": "node --env-file=.env.local scripts/manage.mjs seed",
+    "test:db": "node --env-file=.env.local scripts/manage.mjs test",
+    "test:e2e": "node --env-file=.env.local scripts/e2e.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "^5.3.0",
+    "@supabase/supabase-js": "^2.117.1",
+    "decimal.js": "^10.6.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
+    "lucide-react": "^1.47.0",
+    "next": "^16.3.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.0.9",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "agent-browser": "^0.38.1",
+    "pdfjs-dist": "^6.3.289",
+    "prettier": "^3.9.9",
+    "typescript": "^7.0.2"
+  }
+}

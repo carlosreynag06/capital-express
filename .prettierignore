@@ -1,0 +1,7 @@
+.next
+node_modules
+.local
+package-lock.json
+AGENTS.md
+CLAUDE.md
+supabase
