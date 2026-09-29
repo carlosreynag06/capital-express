@@ -7,7 +7,6 @@ import {
   Archive,
   ArrowLeft,
   ArrowRight,
-  ArrowUpRight,
   CalendarDays,
   CheckCheck,
   Download,
@@ -28,7 +27,6 @@ import {
 import {
   Portfolio,
   Loan,
-  Payment,
   money,
   compactMoney,
   date,
@@ -44,6 +42,8 @@ import {
 import { Avatar, Badge, Brand, Empty, Metric, PageHead, PanelHead } from './ui';
 import { ViewProps } from './views';
 import { downloadDocument } from '@/lib/documents';
+import { loanBehavior } from '@/lib/loan-behavior';
+import { LoanBehaviorPanel, PaymentHistory } from './loan-history';
 export function CustomerProfile({ data, onAction, id }: ViewProps & { id: string }) {
   const params = useSearchParams(),
     customer = data.customers.find((c) => c.id === id),
@@ -67,6 +67,7 @@ export function CustomerProfile({ data, onAction, id }: ViewProps & { id: string
       />
     );
   const due = loan ? interest(data, loan) : 0;
+  const behavior = loan ? loanBehavior(data, loan.id) : null;
   const schedule: string[] = [];
   if (loan) {
     let d = nextDate(data, loan);
@@ -78,6 +79,7 @@ export function CustomerProfile({ data, onAction, id }: ViewProps & { id: string
   const tabs = [
     ['summary', 'Resumen financiero'],
     ['payments', 'Historial de pagos'],
+    ['behavior', 'Puntualidad'],
     ['events', 'Movimientos'],
     ['notes', 'Gestión de cobros'],
     ['history', 'Historial de préstamos'],
@@ -171,6 +173,12 @@ export function CustomerProfile({ data, onAction, id }: ViewProps & { id: string
           </select>
         </div>
         <div className="head-actions">
+          {loan && (
+            <button className="btn" onClick={() => setTab('payments')}>
+              <History size={16} />
+              Ver pagos
+            </button>
+          )}
           {loan && (
             <Link className="btn" href={`/estados/${loan.id}`}>
               <FileText size={16} />
@@ -412,11 +420,14 @@ export function CustomerProfile({ data, onAction, id }: ViewProps & { id: string
       {loan && tab === 'payments' && (
         <section className="panel">
           <PanelHead
-            title="Historial de pagos"
-            subtitle="Los valores corresponden al momento en que se registró cada pago."
+            title={`Pagos de ${reference(loan)}`}
+            subtitle="Cada pago y cambio de capital de este préstamo, en orden cronológico."
           />
-          <PaymentHistory payments={payments} />
+          <PaymentHistory loan={loan} payments={payments} capitalizations={caps} />
         </section>
+      )}
+      {loan && behavior && tab === 'behavior' && (
+        <LoanBehaviorPanel loan={loan} behavior={behavior} />
       )}
       {loan && tab === 'events' && (
         <>
@@ -571,68 +582,41 @@ export function CustomerProfile({ data, onAction, id }: ViewProps & { id: string
                   <small>Capital pendiente</small>
                   <strong>{money(l.principal)}</strong>
                 </div>
-                <button
-                  className="btn"
-                  onClick={() => {
-                    setSelected(l.id);
-                    setTab('summary');
-                  }}
-                >
-                  Ver detalle <ArrowRight size={15} />
-                </button>
+                <div className="historical-actions">
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      setSelected(l.id);
+                      setTab('summary');
+                    }}
+                  >
+                    Ver detalle <ArrowRight size={15} />
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      setSelected(l.id);
+                      setTab('payments');
+                    }}
+                  >
+                    Ver pagos <ArrowRight size={15} />
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      setSelected(l.id);
+                      setTab('behavior');
+                    }}
+                  >
+                    Puntualidad <ArrowRight size={15} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </section>
       )}
     </>
-  );
-}
-function PaymentHistory({ payments }: { payments: Payment[] }) {
-  return (
-    <div className="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Fecha / recibo</th>
-            <th>Pago</th>
-            <th>Interés pagado</th>
-            <th>Abono a capital</th>
-            <th>Interés restante</th>
-            <th>Capital anterior</th>
-            <th>Capital posterior</th>
-            <th>Tasa</th>
-            <th>Próximo pago</th>
-          </tr>
-        </thead>
-        <tbody>
-          {payments.map((p) => (
-            <tr key={p.id}>
-              <td>
-                <Link href={`/recibos/${p.id}`} className="text-link">
-                  {date(p.paid_on)} <ArrowUpRight size={13} />
-                </Link>
-                <small>REC-{p.receipt}</small>
-              </td>
-              <td className="strong-number">{money(p.amount)}</td>
-              <td>{money(p.interest_paid)}</td>
-              <td>{money(p.principal_paid)}</td>
-              <td>{money(p.interest_remaining)}</td>
-              <td>{money(p.principal_before)}</td>
-              <td>{money(p.principal_after)}</td>
-              <td>{p.rate}%</td>
-              <td>{date(p.next_due)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {!payments.length && (
-        <Empty
-          title="Todavía no hay pagos"
-          detail="Los pagos registrados aparecerán en este historial."
-        />
-      )}
-    </div>
   );
 }
 export function DocumentView({ data, path }: { data: Portfolio; path: string }) {
